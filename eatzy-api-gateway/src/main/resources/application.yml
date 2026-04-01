@@ -1,0 +1,59 @@
+spring:
+  main:
+    web-application-type: reactive
+  application:
+    name: eatzy-api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        - id: eatzy-auth-service
+          uri: lb://EATZY-AUTH-SERVICE
+          predicates:
+            - Path=/api/v1/auth/**,/api/v1/users/**,/api/v1/roles/**,/api/v1/permissions/**,/api/v1/email/**,/api/v1/driver-profiles/**,/api/v1/customer-profiles/**,/api/v1/customer-profile/**,/api/v1/addresses/**
+        - id: eatzy-restaurant-service
+          uri: lb://EATZY-RESTAURANT-SERVICE
+          predicates:
+            - Path=/api/v1/restaurants/**
+        - id: eatzy-order-service
+          uri: lb://EATZY-ORDER-SERVICE
+          predicates:
+            - Path=/api/v1/orders/**
+        - id: eatzy-communication-service
+          uri: lb://EATZY-COMMUNICATION-SERVICE
+          predicates:
+            - Path=/api/v1/chat/**,/ws/**
+        - id: eatzy-cart-service
+          uri: lb://EATZY-CART-SERVICE
+          predicates:
+            - Path=/api/v1/carts/**
+        - id: eatzy-payment-service
+          uri: lb://EATZY-PAYMENT-SERVICE
+          predicates:
+            - Path=/api/v1/payment/**,/api/v1/vouchers/**,/api/v1/wallets/**,/api/v1/wallet-transactions/**
+        - id: eatzy-interaction-service
+          uri: lb://EATZY-INTERACTION-SERVICE
+          predicates:
+            - Path=/api/v1/favorites/**,/api/v1/reviews/**,/api/v1/interaction/**
+        - id: eatzy-system-config-service
+          uri: lb://EATZY-SYSTEM-CONFIG-SERVICE
+          predicates:
+            - Path=/api/v1/system-configurations/**
+
+server:
+  port: 8080
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+logging:
+  level:
+    org.springframework.cloud.gateway: TRACE
+    org.springframework.http.server.reactive: DEBUG
+    org.springframework.web.reactive: DEBUG
+    reactor.netty: DEBUG

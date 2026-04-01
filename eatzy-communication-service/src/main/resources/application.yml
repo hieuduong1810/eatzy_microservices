@@ -1,0 +1,5 @@
+spring:
+  application:
+    name: eatzy-communication-service
+  config:
+    import: optional:configserver:http://localhost:8888

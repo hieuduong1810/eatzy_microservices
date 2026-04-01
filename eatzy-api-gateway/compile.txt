@@ -1,0 +1,69 @@
+> Task :eatzy-common:compileJava UP-TO-DATE
+> Task :eatzy-common:processResources NO-SOURCE
+> Task :eatzy-common:classes UP-TO-DATE
+> Task :eatzy-common:jar UP-TO-DATE
+
+> Task :eatzy-api-gateway:compileJava FAILED
+C:\Source Code\Java\eatzy\eatzy-microservices\eatzy-api-gateway\src\main\java\com\eatzy\eatzyapigateway\config\SecurityConfig.java:5: error: package org.springframework.security.config.annotation.web.reactive does not exist
+import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
+                                                                  ^
+C:\Source Code\Java\eatzy\eatzy-microservices\eatzy-api-gateway\src\main\java\com\eatzy\eatzyapigateway\config\SecurityConfig.java:6: error: package org.springframework.security.config.web.server does not exist
+import org.springframework.security.config.web.server.ServerHttpSecurity;
+                                                     ^
+C:\Source Code\Java\eatzy\eatzy-microservices\eatzy-api-gateway\src\main\java\com\eatzy\eatzyapigateway\config\SecurityConfig.java:7: error: package org.springframework.security.web.server does not exist
+import org.springframework.security.web.server.SecurityWebFilterChain;
+                                              ^
+C:\Source Code\Java\eatzy\eatzy-microservices\eatzy-api-gateway\src\main\java\com\eatzy\eatzyapigateway\config\SecurityConfig.java:10: error: cannot find symbol
+@EnableWebFluxSecurity
+ ^
+  symbol: class EnableWebFluxSecurity
+C:\Source Code\Java\eatzy\eatzy-microservices\eatzy-api-gateway\src\main\java\com\eatzy\eatzyapigateway\config\SecurityConfig.java:14: error: cannot find symbol
+    public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
+                                                            ^
+  symbol:   class ServerHttpSecurity
+  location: class SecurityConfig
+C:\Source Code\Java\eatzy\eatzy-microservices\eatzy-api-gateway\src\main\java\com\eatzy\eatzyapigateway\config\SecurityConfig.java:14: error: cannot find symbol
+    public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
+           ^
+  symbol:   class SecurityWebFilterChain
+  location: class SecurityConfig
+6 errors
+
+[Incubating] Problems report is available at: file:///C:/Source%20Code/Java/eatzy/eatzy-microservices/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':eatzy-api-gateway:compileJava'.
+> Compilation failed; see the compiler output below.
+  C:\Source Code\Java\eatzy\eatzy-microservices\eatzy-api-gateway\src\main\java\com\eatzy\eatzyapigateway\config\SecurityConfig.java:14: error: cannot find symbol
+      public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
+                                                              ^
+    symbol:   class ServerHttpSecurity
+    location: class SecurityConfig
+  C:\Source Code\Java\eatzy\eatzy-microservices\eatzy-api-gateway\src\main\java\com\eatzy\eatzyapigateway\config\SecurityConfig.java:14: error: cannot find symbol
+      public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
+             ^
+    symbol:   class SecurityWebFilterChain
+    location: class SecurityConfig
+  C:\Source Code\Java\eatzy\eatzy-microservices\eatzy-api-gateway\src\main\java\com\eatzy\eatzyapigateway\config\SecurityConfig.java:10: error: cannot find symbol
+  @EnableWebFluxSecurity
+   ^
+    symbol: class EnableWebFluxSecurity
+  C:\Source Code\Java\eatzy\eatzy-microservices\eatzy-api-gateway\src\main\java\com\eatzy\eatzyapigateway\config\SecurityConfig.java:5: error: package org.springframework.security.config.annotation.web.reactive does not exist
+  import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
+                                                                    ^
+  C:\Source Code\Java\eatzy\eatzy-microservices\eatzy-api-gateway\src\main\java\com\eatzy\eatzyapigateway\config\SecurityConfig.java:6: error: package org.springframework.security.config.web.server does not exist
+  import org.springframework.security.config.web.server.ServerHttpSecurity;
+                                                       ^
+  C:\Source Code\Java\eatzy\eatzy-microservices\eatzy-api-gateway\src\main\java\com\eatzy\eatzyapigateway\config\SecurityConfig.java:7: error: package org.springframework.security.web.server does not exist
+  import org.springframework.security.web.server.SecurityWebFilterChain;
+                                                ^
+  6 errors
+
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+
+BUILD FAILED in 4s
+3 actionable tasks: 1 executed, 2 up-to-date

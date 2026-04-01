@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="GradleMigrationSettings" migrationVersion="1" />
+  <component name="GradleSettings">
+    <option name="linkedExternalProjectsSettings">
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="gradleHome" value="" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/eatzy-api-gateway" />
+            <option value="$PROJECT_DIR$/eatzy-auth-service" />
+            <option value="$PROJECT_DIR$/eatzy-cart-service" />
+            <option value="$PROJECT_DIR$/eatzy-common" />
+            <option value="$PROJECT_DIR$/eatzy-communication-service" />
+            <option value="$PROJECT_DIR$/eatzy-config-server" />
+            <option value="$PROJECT_DIR$/eatzy-discovery-server" />
+            <option value="$PROJECT_DIR$/eatzy-order-service" />
+            <option value="$PROJECT_DIR$/eatzy-restaurant-service" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/demo" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$/demo" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/eatzy-api-gateway" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$/eatzy-api-gateway" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/eatzy-config-server" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$/eatzy-config-server" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/eatzy-discovery-server" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$/eatzy-discovery-server" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+    </option>
+  </component>
+</project>

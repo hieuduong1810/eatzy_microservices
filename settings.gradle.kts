@@ -1,0 +1,13 @@
+rootProject.name = "eatzy-microservices"
+include("eatzy-common")
+include("eatzy-api-gateway")
+include("eatzy-discovery-server")
+include("eatzy-config-server")
+include("eatzy-auth-service")
+include("eatzy-restaurant-service")
+include("eatzy-order-service")
+include("eatzy-communication-service")
+include("eatzy-cart-service")
+include("eatzy-payment-service")
+include("eatzy-interaction-service")
+include("eatzy-system-config-service")
