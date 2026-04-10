@@ -3,6 +3,7 @@ package com.eatzy.payment.controller;
 import com.eatzy.common.dto.ResultPaginationDTO;
 import com.eatzy.common.exception.IdInvalidException;
 import com.eatzy.payment.domain.WalletTransaction;
+import com.eatzy.payment.domain.enums.TransactionType;
 import com.eatzy.payment.dto.response.ResWalletTransactionDTO;
 import com.eatzy.payment.service.WalletTransactionService;
 import com.turkraft.springfilter.boot.Filter;
@@ -17,7 +18,7 @@ import java.math.BigDecimal;
 @RestController
 @RequestMapping("/api/v1/wallet-transactions")
 public class WalletTransactionController {
-    
+
     private final WalletTransactionService walletTransactionService;
 
     public WalletTransactionController(WalletTransactionService walletTransactionService) {
@@ -29,7 +30,8 @@ public class WalletTransactionController {
             @RequestParam("walletId") Long walletId,
             @RequestParam("amount") BigDecimal amount,
             @RequestParam(value = "description", required = false) String description) throws IdInvalidException {
-        return ResponseEntity.ok(walletTransactionService.depositToWallet(walletId, amount, description));
+        return ResponseEntity
+                .ok(walletTransactionService.depositToWallet(walletId, amount, description, TransactionType.DEPOSIT));
     }
 
     @PostMapping("/withdraw")
@@ -37,20 +39,24 @@ public class WalletTransactionController {
             @RequestParam("walletId") Long walletId,
             @RequestParam("amount") BigDecimal amount,
             @RequestParam(value = "description", required = false) String description) throws IdInvalidException {
-        return ResponseEntity.ok(walletTransactionService.withdrawFromWallet(walletId, amount, description));
+        return ResponseEntity.ok(
+                walletTransactionService.withdrawFromWallet(walletId, amount, description, TransactionType.WITHDRAWAL));
     }
 
     @GetMapping
     public ResponseEntity<ResultPaginationDTO> getAllTransactions(
             @Filter Specification<WalletTransaction> spec, Pageable pageable) {
-        // Here we could enforce security to only allow the user to see their own transactions
-        return ResponseEntity.ok(walletTransactionService.getWalletTransactionsByWalletIdWithSpec(null, spec, pageable));
+        // Here we could enforce security to only allow the user to see their own
+        // transactions
+        return ResponseEntity
+                .ok(walletTransactionService.getWalletTransactionsByWalletIdWithSpec(null, spec, pageable));
     }
 
     @GetMapping("/wallet/{walletId}")
     public ResponseEntity<ResultPaginationDTO> getTransactionsByWallet(
             @PathVariable Long walletId,
             @Filter Specification<WalletTransaction> spec, Pageable pageable) {
-        return ResponseEntity.ok(walletTransactionService.getWalletTransactionsByWalletIdWithSpec(walletId, spec, pageable));
+        return ResponseEntity
+                .ok(walletTransactionService.getWalletTransactionsByWalletIdWithSpec(walletId, spec, pageable));
     }
 }

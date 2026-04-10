@@ -5,12 +5,12 @@ import com.eatzy.payment.designpattern.adapter.AuthServiceClient;
 import com.eatzy.payment.designpattern.adapter.OrderServiceClient;
 import com.eatzy.payment.designpattern.strategy.PaymentStrategy;
 import com.eatzy.payment.designpattern.strategy.PaymentStrategyFactory;
+import com.eatzy.payment.domain.enums.TransactionType;
 import com.eatzy.payment.domain.Voucher;
 import com.eatzy.payment.domain.Wallet;
 import com.eatzy.payment.domain.WalletTransaction;
+import com.eatzy.payment.designpattern.adapter.SystemConfigServiceClient;
 import com.eatzy.payment.dto.request.ReqPaymentInitiateDTO;
-
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,28 +28,22 @@ public class PaymentService {
     private final AuthServiceClient authServiceClient;
     private final OrderServiceClient orderServiceClient;
     private final PaymentStrategyFactory paymentStrategyFactory;
-
-    @Value("${foodDelivery.payment.defaultCodLimit:5000000}")
-    private BigDecimal defaultCodLimit;
-
-    @Value("${foodDelivery.payment.driverCommission:15}")
-    private BigDecimal driverCommissionPercent;
-
-    @Value("${foodDelivery.payment.restaurantCommission:20}")
-    private BigDecimal restaurantCommissionPercent;
+    private final SystemConfigServiceClient systemConfigServiceClient;
 
     public PaymentService(WalletService walletService,
             WalletTransactionService walletTransactionService,
             VoucherService voucherService,
             AuthServiceClient authServiceClient,
             OrderServiceClient orderServiceClient,
-            PaymentStrategyFactory paymentStrategyFactory) {
+            PaymentStrategyFactory paymentStrategyFactory,
+            SystemConfigServiceClient systemConfigServiceClient) {
         this.walletService = walletService;
         this.walletTransactionService = walletTransactionService;
         this.voucherService = voucherService;
         this.authServiceClient = authServiceClient;
         this.orderServiceClient = orderServiceClient;
         this.paymentStrategyFactory = paymentStrategyFactory;
+        this.systemConfigServiceClient = systemConfigServiceClient;
     }
 
     private Long getAdminId() {
@@ -104,7 +98,7 @@ public class PaymentService {
 
         WalletTransaction adminTransaction = WalletTransaction.builder()
                 .wallet(adminWallet)
-                .transactionType("REFUND")
+                .transactionType(TransactionType.REFUND)
                 .amount(refundAmount.negate())
                 .balanceAfter(adminWallet.getBalance().subtract(refundAmount))
                 .description("Refund for order #" + orderId)
@@ -116,7 +110,7 @@ public class PaymentService {
 
         WalletTransaction customerTransaction = WalletTransaction.builder()
                 .wallet(customerWallet)
-                .transactionType("REFUND")
+                .transactionType(TransactionType.REFUND)
                 .amount(refundAmount)
                 .balanceAfter(customerWallet.getBalance().add(refundAmount))
                 .description("Refund for order #" + orderId)
@@ -142,7 +136,7 @@ public class PaymentService {
 
         WalletTransaction driverTransaction = WalletTransaction.builder()
                 .wallet(driverWallet)
-                .transactionType("PAYMENT")
+                .transactionType(TransactionType.PAYMENT)
                 .amount(totalAmount.negate())
                 .balanceAfter(driverWallet.getBalance().subtract(totalAmount))
                 .description("Payment for order #" + orderId)
@@ -158,7 +152,7 @@ public class PaymentService {
             if (adminWallet != null) {
                 WalletTransaction adminTransaction = WalletTransaction.builder()
                         .wallet(adminWallet)
-                        .transactionType("COD_RECEIVED")
+                        .transactionType(TransactionType.COD_RECEIVED)
                         .amount(totalAmount)
                         .balanceAfter(adminWallet.getBalance().add(totalAmount))
                         .description("COD payment received from order #" + orderId)
@@ -177,6 +171,9 @@ public class PaymentService {
 
     public Map<String, BigDecimal> calculateCommissions(BigDecimal deliveryFee, BigDecimal subtotal) {
         Map<String, BigDecimal> commissions = new HashMap<>();
+
+        BigDecimal driverCommissionPercent = getSystemConfigValue("DRIVER_COMMISSION_PERCENT", new BigDecimal("15"));
+        BigDecimal restaurantCommissionPercent = getSystemConfigValue("RESTAURANT_COMMISSION_PERCENT", new BigDecimal("20"));
 
         BigDecimal driverCommission = BigDecimal.ZERO;
         if (deliveryFee != null) {
@@ -273,5 +270,17 @@ public class PaymentService {
         }
 
         return totalDiscount;
+    }
+
+    private BigDecimal getSystemConfigValue(String key, BigDecimal defaultValue) {
+        try {
+            Map<String, Object> configData = systemConfigServiceClient.getSystemConfigurationByKey(key);
+            if (configData != null && configData.get("configValue") != null) {
+                return new BigDecimal(configData.get("configValue").toString());
+            }
+        } catch (Exception e) {
+            // fallback to default
+        }
+        return defaultValue;
     }
 }

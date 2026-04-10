@@ -5,7 +5,7 @@ import com.eatzy.communication.designpattern.adapter.OrderServiceClient;
 import com.eatzy.communication.designpattern.factory.DriverLocationNotification;
 import com.eatzy.communication.designpattern.factory.NotificationFactory;
 import com.eatzy.communication.dto.DriverLocationUpdate;
-import com.eatzy.communication.service.RedisGeoService;
+import com.eatzy.common.service.RedisGeoService;
 import com.eatzy.communication.service.WebSocketService;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;

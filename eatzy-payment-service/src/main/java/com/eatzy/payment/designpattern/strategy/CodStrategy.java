@@ -3,7 +3,7 @@ package com.eatzy.payment.designpattern.strategy;
 import com.eatzy.common.exception.IdInvalidException;
 import com.eatzy.payment.designpattern.adapter.AuthServiceClient;
 import com.eatzy.payment.dto.request.ReqPaymentInitiateDTO;
-import org.springframework.beans.factory.annotation.Value;
+import com.eatzy.payment.designpattern.adapter.SystemConfigServiceClient;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -14,12 +14,11 @@ import java.util.Map;
 public class CodStrategy implements PaymentStrategy {
 
     private final AuthServiceClient authServiceClient;
+    private final SystemConfigServiceClient systemConfigServiceClient;
 
-    @Value("${foodDelivery.payment.defaultCodLimit:5000000}")
-    private BigDecimal defaultCodLimit;
-
-    public CodStrategy(AuthServiceClient authServiceClient) {
+    public CodStrategy(AuthServiceClient authServiceClient, SystemConfigServiceClient systemConfigServiceClient) {
         this.authServiceClient = authServiceClient;
+        this.systemConfigServiceClient = systemConfigServiceClient;
     }
 
     @Override
@@ -33,7 +32,7 @@ public class CodStrategy implements PaymentStrategy {
             throw new IdInvalidException("Amount is required for COD payment");
         }
 
-        BigDecimal codLimit = defaultCodLimit;
+        BigDecimal codLimit = getSystemConfigValue("DEFAULT_COD_LIMIT", new BigDecimal("5000000"));
 
         if (driverId != null) {
             try {
@@ -62,6 +61,18 @@ public class CodStrategy implements PaymentStrategy {
         }
 
         return result;
+    }
+
+    private BigDecimal getSystemConfigValue(String key, BigDecimal defaultValue) {
+        try {
+            Map<String, Object> configData = systemConfigServiceClient.getSystemConfigurationByKey(key);
+            if (configData != null && configData.get("configValue") != null) {
+                return new BigDecimal(configData.get("configValue").toString());
+            }
+        } catch (Exception e) {
+            // fallback to default
+        }
+        return defaultValue;
     }
 
     @Override

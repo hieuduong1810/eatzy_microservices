@@ -1,5 +1,6 @@
 package com.eatzy.order.mapper;
 
+import com.eatzy.common.service.MapboxService;
 import com.eatzy.order.designpattern.adapter.AuthServiceClient;
 import com.eatzy.order.designpattern.adapter.RestaurantServiceClient;
 import com.eatzy.order.domain.Order;
@@ -33,13 +34,16 @@ public class OrderMapper {
     private final AuthServiceClient authServiceClient;
     private final RestaurantServiceClient restaurantServiceClient;
     private final OrderEarningsSummaryRepository orderEarningsSummaryRepository;
+    private final MapboxService mapboxService;
 
     public OrderMapper(AuthServiceClient authServiceClient,
                        RestaurantServiceClient restaurantServiceClient,
-                       OrderEarningsSummaryRepository orderEarningsSummaryRepository) {
+                       OrderEarningsSummaryRepository orderEarningsSummaryRepository,
+                       MapboxService mapboxService) {
         this.authServiceClient = authServiceClient;
         this.restaurantServiceClient = restaurantServiceClient;
         this.orderEarningsSummaryRepository = orderEarningsSummaryRepository;
+        this.mapboxService = mapboxService;
     }
 
     public ResOrderDTO toResOrderDTO(Order order) {
@@ -99,12 +103,14 @@ public class OrderMapper {
                     restaurant.setLongitude(getBigDecimalValue(restData, "longitude"));
                     dto.setRestaurant(restaurant);
 
-                    // Calculate distance
-                    RestaurantServiceClient.DistanceRes distanceRes = restaurantServiceClient.getDrivingDistance(
-                            restaurant.getLatitude(), restaurant.getLongitude(),
-                            order.getDeliveryLatitude(), order.getDeliveryLongitude());
-                    BigDecimal distance = distanceRes != null ? distanceRes.getDistance() : null;
-                    dto.setDistance(formatDecimal(distance));
+                    // Calculate distance using Mapbox directly
+                    if (restaurant.getLatitude() != null && restaurant.getLongitude() != null
+                            && order.getDeliveryLatitude() != null && order.getDeliveryLongitude() != null) {
+                        BigDecimal distance = mapboxService.getDrivingDistance(
+                                restaurant.getLatitude(), restaurant.getLongitude(),
+                                order.getDeliveryLatitude(), order.getDeliveryLongitude());
+                        dto.setDistance(formatDecimal(distance));
+                    }
                 }
             } catch (Exception e) {
                 log.warn("Failed to enrich restaurant info for order {}: {}", order.getId(), e.getMessage());

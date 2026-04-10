@@ -38,7 +38,8 @@ public class SecurityConfiguration {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         String[] whiteList = { "/", "/api/v1/restaurants/**",
-                "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html" };
+                "/api/v1/dishes/**", "/api/v1/menu-options/**",
+                "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html" };
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())

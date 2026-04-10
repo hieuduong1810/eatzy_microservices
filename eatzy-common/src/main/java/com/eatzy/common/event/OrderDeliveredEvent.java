@@ -16,13 +16,15 @@ public class OrderDeliveredEvent implements Serializable {
     private BigDecimal totalAmount;
     private BigDecimal driverNetEarning;
     private BigDecimal restaurantNetEarning;
+    private java.util.List<Long> voucherIds;
 
     public OrderDeliveredEvent() {
     }
 
     public OrderDeliveredEvent(Long orderId, Long customerId, Long driverId, Long restaurantId,
                                BigDecimal subtotal, BigDecimal deliveryFee, BigDecimal discountAmount,
-                               BigDecimal totalAmount, BigDecimal driverNetEarning, BigDecimal restaurantNetEarning) {
+                               BigDecimal totalAmount, BigDecimal driverNetEarning, BigDecimal restaurantNetEarning,
+                               java.util.List<Long> voucherIds) {
         this.orderId = orderId;
         this.customerId = customerId;
         this.driverId = driverId;
@@ -33,6 +35,7 @@ public class OrderDeliveredEvent implements Serializable {
         this.totalAmount = totalAmount;
         this.driverNetEarning = driverNetEarning;
         this.restaurantNetEarning = restaurantNetEarning;
+        this.voucherIds = voucherIds;
     }
 
     public Long getOrderId() { return orderId; }
@@ -55,6 +58,8 @@ public class OrderDeliveredEvent implements Serializable {
     public void setDriverNetEarning(BigDecimal driverNetEarning) { this.driverNetEarning = driverNetEarning; }
     public BigDecimal getRestaurantNetEarning() { return restaurantNetEarning; }
     public void setRestaurantNetEarning(BigDecimal restaurantNetEarning) { this.restaurantNetEarning = restaurantNetEarning; }
+    public java.util.List<Long> getVoucherIds() { return voucherIds; }
+    public void setVoucherIds(java.util.List<Long> voucherIds) { this.voucherIds = voucherIds; }
 
     @Override
     public String toString() {

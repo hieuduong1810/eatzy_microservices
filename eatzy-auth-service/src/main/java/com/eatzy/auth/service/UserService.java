@@ -107,6 +107,10 @@ public class UserService {
         return this.userRepository.findByEmail(username);
     }
 
+    public User getUserByRoleName(String roleName) {
+        return this.userRepository.findFirstByRoleName(roleName);
+    }
+
     public boolean checkEmailExists(String email) {
         return this.userRepository.existsByEmail(email);
     }

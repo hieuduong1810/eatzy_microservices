@@ -12,4 +12,6 @@ import java.util.Optional;
 public interface UserTypeScoreRepository extends JpaRepository<UserTypeScore, Long> {
     Optional<UserTypeScore> findByUserIdAndRestaurantTypeId(Long userId, Long restaurantTypeId);
     List<UserTypeScore> findByUserIdOrderByScoreDesc(Long userId, Pageable pageable);
+    
+    List<UserTypeScore> findByUserIdAndRestaurantTypeIdIn(Long userId, List<Long> typeIds);
 }

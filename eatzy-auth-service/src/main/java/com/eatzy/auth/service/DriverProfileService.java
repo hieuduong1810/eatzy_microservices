@@ -15,6 +15,7 @@ import com.eatzy.common.dto.ResultPaginationDTO;
 import com.eatzy.auth.repository.DriverProfileRepository;
 import com.eatzy.auth.mapper.DriverProfileMapper;
 import com.eatzy.common.exception.IdInvalidException;
+import com.eatzy.common.service.RedisGeoService;
 import com.eatzy.common.util.SecurityUtils;
 
 import lombok.extern.slf4j.Slf4j;
@@ -25,12 +26,18 @@ public class DriverProfileService {
     private final DriverProfileRepository driverProfileRepository;
     private final UserService userService;
     private final DriverProfileMapper driverProfileMapper;
+    private final RedisGeoService redisGeoService;
+    private final com.eatzy.auth.kafka.AuthMessagePublisher authMessagePublisher;
 
     public DriverProfileService(DriverProfileRepository driverProfileRepository,
-            UserService userService, DriverProfileMapper driverProfileMapper) {
+            UserService userService, DriverProfileMapper driverProfileMapper,
+            RedisGeoService redisGeoService,
+            com.eatzy.auth.kafka.AuthMessagePublisher authMessagePublisher) {
         this.driverProfileRepository = driverProfileRepository;
         this.userService = userService;
         this.driverProfileMapper = driverProfileMapper;
+        this.redisGeoService = redisGeoService;
+        this.authMessagePublisher = authMessagePublisher;
     }
 
     public boolean existsByUserId(Long userId) {
@@ -249,10 +256,22 @@ public class DriverProfileService {
         profile.setStatus("AVAILABLE");
         DriverProfile savedProfile = driverProfileRepository.save(profile);
 
-        log.info("🟢 Driver {} (ID: {}) is now ONLINE", driver.getName(), driver.getId());
+        // Update Redis GEO with driver location (matches eatzy_backend)
+        redisGeoService.updateDriverLocation(driver.getId(),
+                profile.getCurrentLatitude(), profile.getCurrentLongitude());
 
-        // We emit a kafka event or similar in actual microservice architecture to let
-        // Orchestrator know driver is online.
+        log.info("🟢 Driver {} (ID: {}) is now ONLINE + Redis GEO updated", driver.getName(), driver.getId());
+
+        // Publish DriverOnlineEvent so order-service can assign waiting orders (matches eatzy_backend)
+        try {
+            authMessagePublisher.publishDriverOnlineEvent(
+                    new com.eatzy.common.event.DriverOnlineEvent(
+                            driver.getId(),
+                            profile.getCurrentLatitude(),
+                            profile.getCurrentLongitude()));
+        } catch (Exception e) {
+            log.warn("Failed to publish DriverOnlineEvent for driver {}: {}", driver.getId(), e.getMessage());
+        }
 
         return driverProfileMapper.convertToResDriverProfileDTO(savedProfile);
     }
@@ -274,6 +293,11 @@ public class DriverProfileService {
         DriverProfile profile = profileOpt.get();
         profile.setStatus("OFFLINE");
         DriverProfile savedProfile = driverProfileRepository.save(profile);
+
+        // Remove from Redis GEO when going offline (matches eatzy_backend)
+        redisGeoService.removeDriverLocation(driver.getId());
+        log.info("🔴 Driver {} (ID: {}) is now OFFLINE + removed from Redis GEO", driver.getName(), driver.getId());
+
         return driverProfileMapper.convertToResDriverProfileDTO(savedProfile);
     }
 
@@ -285,6 +309,11 @@ public class DriverProfileService {
             profile.setCurrentLatitude(latitude);
             profile.setCurrentLongitude(longitude);
             driverProfileRepository.save(profile);
+
+            // Also update Redis GEO if driver is AVAILABLE (matches eatzy_backend)
+            if ("AVAILABLE".equals(profile.getStatus())) {
+                redisGeoService.updateDriverLocation(userId, latitude, longitude);
+            }
         } else {
             throw new IdInvalidException("Driver profile not found for user id: " + userId);
         }
@@ -313,5 +342,55 @@ public class DriverProfileService {
 
     public long countDriversByStatus(String status) {
         return this.driverProfileRepository.countByStatus(status);
+    }
+
+    /**
+     * Increment completedTrips counter for a driver.
+     * Matches eatzy_backend markOrderAsDelivered logic.
+     */
+    @Transactional
+    public void incrementCompletedTrips(Long userId) throws IdInvalidException {
+        Optional<DriverProfile> profileOpt = driverProfileRepository.findByUserId(userId);
+        if (profileOpt.isPresent()) {
+            DriverProfile profile = profileOpt.get();
+            Integer currentTrips = profile.getCompletedTrips() != null ? profile.getCompletedTrips() : 0;
+            profile.setCompletedTrips(currentTrips + 1);
+            driverProfileRepository.save(profile);
+            log.info("🏁 Driver {} completed trips: {}", userId, currentTrips + 1);
+        } else {
+            throw new IdInvalidException("Driver profile not found for user id: " + userId);
+        }
+    }
+
+    /**
+     * Validate driver user IDs against SQL business rules.
+     * Matches eatzy_backend STEP 2: Query SQL to validate business rules (COD limit, status).
+     *
+     * @param userIds     List of driver user IDs (from Redis GEO)
+     * @param minCodLimit Minimum COD limit required (null for non-COD orders)
+     * @return List of validated driver user IDs
+     */
+    public java.util.List<Long> validateDriversByUserIds(java.util.List<Long> userIds,
+            java.math.BigDecimal minCodLimit) {
+        if (userIds == null || userIds.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+
+        java.util.List<DriverProfile> validProfiles;
+        if (minCodLimit != null) {
+            // COD order: check status = AVAILABLE AND codLimit >= totalAmount
+            log.info("💰 Validating COD limit >= {} for {} drivers", minCodLimit, userIds.size());
+            validProfiles = driverProfileRepository.findByUserIdsWithCodLimit(userIds, minCodLimit);
+        } else {
+            // Non-COD order: just check status = AVAILABLE
+            log.info("💳 Validating AVAILABLE status for {} drivers", userIds.size());
+            validProfiles = driverProfileRepository.findByUserIds(userIds);
+        }
+
+        log.info("✅ {} drivers passed SQL validation", validProfiles.size());
+
+        return validProfiles.stream()
+                .map(dp -> dp.getUser().getId())
+                .collect(java.util.stream.Collectors.toList());
     }
 }

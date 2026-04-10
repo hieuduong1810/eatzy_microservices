@@ -2,6 +2,7 @@ package com.eatzy.payment.controller;
 
 import com.eatzy.common.exception.IdInvalidException;
 import com.eatzy.payment.dto.request.ReqPaymentInitiateDTO;
+import com.eatzy.payment.repository.WalletRepository;
 import com.eatzy.payment.service.PaymentService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,13 +16,15 @@ import java.util.Map;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private final WalletRepository walletRepository;
 
-    public PaymentController(PaymentService paymentService) {
+    public PaymentController(PaymentService paymentService, WalletRepository walletRepository) {
         this.paymentService = paymentService;
+        this.walletRepository = walletRepository;
     }
 
     @PostMapping("/initiate")
-    public ResponseEntity<Map<String, Object>> initiatePayment(ReqPaymentInitiateDTO req) throws Exception {
+    public ResponseEntity<Map<String, Object>> initiatePayment(@RequestBody ReqPaymentInitiateDTO req) throws Exception {
         return ResponseEntity.ok(paymentService.initiatePayment(req));
     }
 
@@ -111,5 +114,18 @@ public class PaymentController {
         public void setDeliveryFee(BigDecimal deliveryFee) {
             this.deliveryFee = deliveryFee;
         }
+    }
+
+    /**
+     * Check which driver user IDs have wallet balance > 0.
+     * Matches eatzy_backend: balance > 0 check in assignDriver business logic.
+     */
+    @PostMapping("/wallets/validate-balance")
+    public ResponseEntity<List<Long>> validateDriverWalletBalances(@RequestBody List<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return ResponseEntity.ok(List.of());
+        }
+        List<Long> validUserIds = walletRepository.findUserIdsWithPositiveBalance(userIds);
+        return ResponseEntity.ok(validUserIds);
     }
 }

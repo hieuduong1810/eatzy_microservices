@@ -21,6 +21,8 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.Map;
 
+import com.eatzy.payment.domain.enums.TransactionType;
+
 @Service
 public class WalletTransactionService {
     private final WalletTransactionRepository walletTransactionRepository;
@@ -28,8 +30,8 @@ public class WalletTransactionService {
     private final OrderServiceClient orderServiceClient;
 
     public WalletTransactionService(WalletTransactionRepository walletTransactionRepository,
-                                    WalletService walletService,
-                                    OrderServiceClient orderServiceClient) {
+            WalletService walletService,
+            OrderServiceClient orderServiceClient) {
         this.walletTransactionRepository = walletTransactionRepository;
         this.walletService = walletService;
         this.orderServiceClient = orderServiceClient;
@@ -64,20 +66,17 @@ public class WalletTransactionService {
     }
 
     @Transactional
-    public ResWalletTransactionDTO createWalletTransaction(WalletTransaction walletTransaction) throws IdInvalidException {
+    public ResWalletTransactionDTO createWalletTransaction(WalletTransaction walletTransaction)
+            throws IdInvalidException {
         if (walletTransaction.getWallet() != null) {
             Wallet wallet = walletService.getWalletById(walletTransaction.getWallet().getId());
-            if (wallet == null) throw new IdInvalidException("Wallet not found");
+            if (wallet == null)
+                throw new IdInvalidException("Wallet not found");
             walletTransaction.setWallet(wallet);
         } else {
             throw new IdInvalidException("Wallet is required");
         }
 
-        if (walletTransaction.getOrderId() != null) {
-            // Optional: validate order exists using OrderServiceClient
-            Map<String, Object> order = orderServiceClient.getOrderById(walletTransaction.getOrderId());
-            if (order == null) throw new IdInvalidException("Order not found");
-        }
 
         if (walletTransaction.getAmount() == null || walletTransaction.getAmount().compareTo(BigDecimal.ZERO) == 0) {
             throw new IdInvalidException("Amount is required and must not be zero");
@@ -102,15 +101,18 @@ public class WalletTransactionService {
     }
 
     @Transactional
-    public ResWalletTransactionDTO depositToWallet(Long walletId, BigDecimal amount, String description) throws IdInvalidException {
+    public ResWalletTransactionDTO depositToWallet(Long walletId, BigDecimal amount, String description, TransactionType transactionType)
+            throws IdInvalidException {
         Wallet wallet = walletService.getWalletById(walletId);
-        if (wallet == null) throw new IdInvalidException("Wallet not found");
-        if (amount.compareTo(BigDecimal.ZERO) <= 0) throw new IdInvalidException("Amount must be > 0");
+        if (wallet == null)
+            throw new IdInvalidException("Wallet not found");
+        if (amount.compareTo(BigDecimal.ZERO) <= 0)
+            throw new IdInvalidException("Amount must be > 0");
 
         WalletTransaction transaction = WalletTransaction.builder()
                 .wallet(wallet)
                 .amount(amount)
-                .transactionType("DEPOSIT")
+                .transactionType(transactionType != null ? transactionType : TransactionType.DEPOSIT)
                 .description(description != null ? description : "Deposit to wallet")
                 .status("SUCCESS")
                 .createdAt(Instant.now())
@@ -123,16 +125,20 @@ public class WalletTransactionService {
     }
 
     @Transactional
-    public ResWalletTransactionDTO withdrawFromWallet(Long walletId, BigDecimal amount, String description) throws IdInvalidException {
+    public ResWalletTransactionDTO withdrawFromWallet(Long walletId, BigDecimal amount, String description, TransactionType transactionType)
+            throws IdInvalidException {
         Wallet wallet = walletService.getWalletById(walletId);
-        if (wallet == null) throw new IdInvalidException("Wallet not found");
-        if (amount.compareTo(BigDecimal.ZERO) <= 0) throw new IdInvalidException("Amount must be > 0");
-        if (wallet.getBalance().compareTo(amount) < 0) throw new IdInvalidException("Insufficient balance");
+        if (wallet == null)
+            throw new IdInvalidException("Wallet not found");
+        if (amount.compareTo(BigDecimal.ZERO) <= 0)
+            throw new IdInvalidException("Amount must be > 0");
+        if (wallet.getBalance().compareTo(amount) < 0)
+            throw new IdInvalidException("Insufficient balance");
 
         WalletTransaction transaction = WalletTransaction.builder()
                 .wallet(wallet)
                 .amount(amount.negate())
-                .transactionType("WITHDRAWAL")
+                .transactionType(transactionType != null ? transactionType : TransactionType.WITHDRAWAL)
                 .description(description != null ? description : "Withdrawal from wallet")
                 .status("SUCCESS")
                 .createdAt(Instant.now())
@@ -143,6 +149,55 @@ public class WalletTransactionService {
 
         return convertToDTO(savedTransaction);
     }
+
+    @Transactional
+    public ResWalletTransactionDTO depositToWalletByUserId(Long userId, BigDecimal amount, String description, Long orderId, TransactionType transactionType) throws IdInvalidException {
+        Wallet wallet = walletService.getWalletByUserId(userId);
+        if (wallet == null) {
+            wallet = walletService.createWallet(userId); // Auto-create if not exists
+        }
+        
+        WalletTransaction transaction = WalletTransaction.builder()
+                .wallet(wallet)
+                .amount(amount)
+                .transactionType(transactionType != null ? transactionType : TransactionType.DEPOSIT)
+                .description(description)
+                .orderId(orderId)
+                .status("SUCCESS")
+                .createdAt(Instant.now())
+                .build();
+
+        WalletTransaction savedTransaction = walletTransactionRepository.save(transaction);
+        walletService.addBalance(wallet.getId(), amount);
+
+        return convertToDTO(savedTransaction);
+    }
+
+    @Transactional
+    public ResWalletTransactionDTO withdrawFromWalletByUserId(Long userId, BigDecimal amount, String description, Long orderId, TransactionType transactionType) throws IdInvalidException {
+        Wallet wallet = walletService.getWalletByUserId(userId);
+        if (wallet == null) {
+            wallet = walletService.createWallet(userId);
+        }
+        
+        // Negative amount for withdraw
+        WalletTransaction transaction = WalletTransaction.builder()
+                .wallet(wallet)
+                .amount(amount.negate())
+                .transactionType(transactionType != null ? transactionType : TransactionType.WITHDRAWAL)
+                .description(description)
+                .orderId(orderId)
+                .status("SUCCESS")
+                .createdAt(Instant.now())
+                .build();
+
+        WalletTransaction savedTransaction = walletTransactionRepository.save(transaction);
+        walletService.subtractBalance(wallet.getId(), amount);
+
+        return convertToDTO(savedTransaction);
+    }
+
+
 
     private void updateWalletBalance(WalletTransaction transaction) throws IdInvalidException {
         Wallet wallet = transaction.getWallet();
@@ -155,8 +210,10 @@ public class WalletTransactionService {
         }
     }
 
-    public ResultPaginationDTO getWalletTransactionsByWalletIdWithSpec(Long walletId, Specification<WalletTransaction> spec, Pageable pageable) {
-        Specification<WalletTransaction> baseSpec = (root, query, cb) -> cb.equal(root.get("wallet").get("id"), walletId);
+    public ResultPaginationDTO getWalletTransactionsByWalletIdWithSpec(Long walletId,
+            Specification<WalletTransaction> spec, Pageable pageable) {
+        Specification<WalletTransaction> baseSpec = (root, query, cb) -> cb.equal(root.get("wallet").get("id"),
+                walletId);
         Specification<WalletTransaction> combinedSpec = spec != null ? baseSpec.and(spec) : baseSpec;
         Page<WalletTransaction> page = walletTransactionRepository.findAll(combinedSpec, pageable);
 

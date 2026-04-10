@@ -31,7 +31,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Internal/Public endpoints
                         .requestMatchers(HttpMethod.POST, "/api/v1/payment/calculate-discount").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/payment/wallets/validate-balance").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/payment/calculate-commissions").permitAll()
+                        .requestMatchers("/v3/api-docs", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         // Secured endpoints
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2

@@ -1,8 +1,22 @@
 package com.eatzy.restaurant.mapper;
 
 import org.springframework.stereotype.Component;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import com.eatzy.restaurant.domain.Restaurant;
+import com.eatzy.restaurant.domain.DishCategory;
+import com.eatzy.restaurant.domain.Dish;
+import com.eatzy.restaurant.domain.MenuOptionGroup;
+import com.eatzy.restaurant.domain.MenuOption;
+
+import com.eatzy.restaurant.domain.res.ResDishCategoryDTO;
+import com.eatzy.restaurant.domain.res.ResDishDTO;
+import com.eatzy.restaurant.domain.res.ResMenuOptionDTO;
+import com.eatzy.restaurant.domain.res.ResMenuOptionGroupDTO;
 import com.eatzy.restaurant.domain.res.ResRestaurantDTO;
+import com.eatzy.restaurant.domain.res.ResRestaurantMenuDTO;
+import com.eatzy.restaurant.domain.res.ResRestaurantMagazineDTO;
 
 @Component
 public class RestaurantMapper {
@@ -37,5 +51,92 @@ public class RestaurantMapper {
                 .avatarUrl(r.getAvatarUrl())
                 .coverImageUrl(r.getCoverImageUrl())
                 .build();
+    }
+
+    public ResRestaurantMenuDTO convertToMenuDTO(Restaurant r) {
+        if (r == null) return null;
+
+        List<ResDishCategoryDTO> categoriesDTO = null;
+        if (r.getDishCategories() != null) {
+            categoriesDTO = r.getDishCategories().stream()
+                .map(cat -> new ResDishCategoryDTO(
+                    cat.getId(),
+                    cat.getName(),
+                    cat.getDishes() != null ? cat.getDishes().stream()
+                        .map(dish -> new ResDishDTO(
+                            dish.getId(),
+                            dish.getName(),
+                            dish.getDescription(),
+                            dish.getPrice(),
+                            dish.getAvailabilityQuantity(),
+                            dish.getImageUrl(),
+                            dish.getMenuOptionGroups() != null ? dish.getMenuOptionGroups().size() : 0,
+                            dish.getMenuOptionGroups() != null ? dish.getMenuOptionGroups().stream()
+                                .map(group -> new ResMenuOptionGroupDTO(
+                                    group.getId(),
+                                    group.getGroupName(),
+                                    group.getMinChoices(),
+                                    group.getMaxChoices(),
+                                    group.getMenuOptions() != null ? group.getMenuOptions().stream()
+                                        .map(opt -> new ResMenuOptionDTO(
+                                            opt.getId(),
+                                            opt.getName(),
+                                            opt.getPriceAdjustment(),
+                                            opt.getIsAvailable() != null ? opt.getIsAvailable() : false
+                                        ))
+                                        .collect(Collectors.toList()) : null
+                                ))
+                                .collect(Collectors.toList()) : null
+                        ))
+                        .collect(Collectors.toList()) : null
+                ))
+                .collect(Collectors.toList());
+        }
+
+        return new ResRestaurantMenuDTO(
+            r.getId(),
+            r.getName(),
+            categoriesDTO
+        );
+    }
+
+    public ResRestaurantMagazineDTO convertToMagazineDTO(Restaurant r) {
+        if (r == null) return null;
+
+        List<ResRestaurantMagazineDTO.Category> categoriesDTO = null;
+        if (r.getDishCategories() != null) {
+            categoriesDTO = r.getDishCategories().stream()
+                .map(cat -> new ResRestaurantMagazineDTO.Category(
+                    cat.getId(),
+                    cat.getName(),
+                    cat.getDishes() != null ? cat.getDishes().stream()
+                        .map(dish -> new ResRestaurantMagazineDTO.Category.Dish(
+                            dish.getId(),
+                            dish.getName(),
+                            dish.getDescription(),
+                            dish.getPrice(),
+                            dish.getImageUrl()
+                        ))
+                        .collect(Collectors.toList()) : null
+                ))
+                .collect(Collectors.toList());
+        }
+
+        ResRestaurantMagazineDTO dto = new ResRestaurantMagazineDTO();
+        dto.setId(r.getId());
+        dto.setName(r.getName());
+        dto.setSlug(r.getSlug());
+        dto.setAddress(r.getAddress());
+        dto.setDescription(r.getDescription());
+        dto.setAvatarUrl(r.getAvatarUrl());
+        dto.setOneStarCount(r.getOneStarCount());
+        dto.setTwoStarCount(r.getTwoStarCount());
+        dto.setThreeStarCount(r.getThreeStarCount());
+        dto.setFourStarCount(r.getFourStarCount());
+        dto.setFiveStarCount(r.getFiveStarCount());
+        dto.setAverageRating(r.getAverageRating());
+        dto.setCategory(categoriesDTO);
+
+        return dto;
     }
 }

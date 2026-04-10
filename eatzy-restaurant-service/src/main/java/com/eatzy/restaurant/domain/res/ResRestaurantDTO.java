@@ -26,4 +26,12 @@ public class ResRestaurantDTO {
     private String schedule;
     private String avatarUrl;
     private String coverImageUrl;
+    private BigDecimal distance;
+    
+    // Personalized scores
+    private Double typeScore;
+    private Double loyaltyScore;
+    private Double distanceScore;
+    private Double qualityScore;
+    private Double finalScore;
 }

@@ -10,6 +10,7 @@ import com.eatzy.order.dto.response.ResDeliveryFeeDTO;
 import com.eatzy.order.dto.response.ResOrderDTO;
 import com.eatzy.order.service.OrderEarningsSummaryService;
 import com.eatzy.order.service.OrderService;
+import com.eatzy.common.util.SecurityUtils;
 import com.turkraft.springfilter.boot.Filter;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
@@ -29,7 +30,7 @@ public class OrderController {
     private final OrderEarningsSummaryService earningsSummaryService;
 
     public OrderController(OrderService orderService,
-                           OrderEarningsSummaryService earningsSummaryService) {
+            OrderEarningsSummaryService earningsSummaryService) {
         this.orderService = orderService;
         this.earningsSummaryService = earningsSummaryService;
     }
@@ -41,7 +42,7 @@ public class OrderController {
             @Valid @RequestBody ReqOrderDTO reqOrderDTO,
             jakarta.servlet.http.HttpServletRequest request)
             throws IdInvalidException {
-        
+
         String clientIp = request.getRemoteAddr();
         String baseUrl = request.getScheme() + "://" + request.getServerName() + ":" + request.getServerPort();
 
@@ -107,13 +108,13 @@ public class OrderController {
     // ==================== ORDER LIFECYCLE (State Pattern) ====================
 
     @PatchMapping("/orders/{id}/accept")
-    public ResponseEntity<ResOrderDTO> acceptOrderByRestaurant(@PathVariable Long id) throws IdInvalidException {
+    public ResponseEntity<ResOrderDTO> acceptOrderByRestaurant(@PathVariable("id") Long id) throws IdInvalidException {
         return ResponseEntity.ok(orderService.acceptOrderByRestaurant(id));
     }
 
     @PatchMapping("/orders/{id}/reject")
     public ResponseEntity<ResOrderDTO> rejectOrderByRestaurant(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @RequestParam(required = false, defaultValue = "Đơn hàng bị từ chối bởi nhà hàng") String reason)
             throws IdInvalidException {
         return ResponseEntity.ok(orderService.rejectOrderByRestaurant(id, reason));
@@ -121,50 +122,50 @@ public class OrderController {
 
     @PatchMapping("/orders/{id}/cancel")
     public ResponseEntity<ResOrderDTO> cancelOrder(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @RequestParam(required = false, defaultValue = "Đơn hàng bị hủy") String reason)
             throws IdInvalidException {
         return ResponseEntity.ok(orderService.cancelOrder(id, reason));
     }
 
     @PatchMapping("/orders/{id}/ready")
-    public ResponseEntity<ResOrderDTO> markOrderAsReady(@PathVariable Long id) throws IdInvalidException {
+    public ResponseEntity<ResOrderDTO> markOrderAsReady(@PathVariable("id") Long id) throws IdInvalidException {
         return ResponseEntity.ok(orderService.markOrderAsReady(id));
     }
 
     @PatchMapping("/orders/{id}/assign-driver")
-    public ResponseEntity<ResOrderDTO> assignDriver(@PathVariable Long id) throws IdInvalidException {
+    public ResponseEntity<ResOrderDTO> assignDriver(@PathVariable("id") Long id) throws IdInvalidException {
         return ResponseEntity.ok(orderService.assignDriver(id));
     }
 
     @PatchMapping("/orders/{id}/driver-accept")
     public ResponseEntity<ResOrderDTO> acceptOrderByDriver(
-            @PathVariable Long id, @RequestParam Long driverId) throws IdInvalidException {
-        return ResponseEntity.ok(orderService.acceptOrderByDriver(id, driverId));
+            @PathVariable("id") Long id) throws IdInvalidException {
+        return ResponseEntity.ok(orderService.acceptOrderByDriver(id, SecurityUtils.getCurrentUserId()));
     }
 
     @PatchMapping("/orders/{id}/driver-reject")
     public ResponseEntity<ResOrderDTO> rejectOrderByDriver(
-            @PathVariable Long id, @RequestParam Long driverId) throws IdInvalidException {
-        return ResponseEntity.ok(orderService.rejectOrderByDriver(id, driverId));
+            @PathVariable("id") Long id) throws IdInvalidException {
+        return ResponseEntity.ok(orderService.rejectOrderByDriver(id, SecurityUtils.getCurrentUserId()));
     }
 
     @PatchMapping("/orders/{id}/picked-up")
     public ResponseEntity<ResOrderDTO> markOrderAsPickedUp(
-            @PathVariable Long id, @RequestParam Long driverId) throws IdInvalidException {
-        return ResponseEntity.ok(orderService.markOrderAsPickedUp(id, driverId));
+            @PathVariable("id") Long id) throws IdInvalidException {
+        return ResponseEntity.ok(orderService.markOrderAsPickedUp(id, SecurityUtils.getCurrentUserId()));
     }
 
     @PatchMapping("/orders/{id}/arrived")
     public ResponseEntity<ResOrderDTO> markOrderAsArrived(
-            @PathVariable Long id, @RequestParam Long driverId) throws IdInvalidException {
-        return ResponseEntity.ok(orderService.markOrderAsArrived(id, driverId));
+            @PathVariable("id") Long id) throws IdInvalidException {
+        return ResponseEntity.ok(orderService.markOrderAsArrived(id, SecurityUtils.getCurrentUserId()));
     }
 
     @PatchMapping("/orders/{id}/delivered")
     public ResponseEntity<ResOrderDTO> markOrderAsDelivered(
-            @PathVariable Long id, @RequestParam Long driverId) throws IdInvalidException {
-        ResOrderDTO orderDTO = orderService.markOrderAsDelivered(id, driverId);
+            @PathVariable("id") Long id) throws IdInvalidException {
+        ResOrderDTO orderDTO = orderService.markOrderAsDelivered(id, SecurityUtils.getCurrentUserId());
         // Create earnings summary after delivery
         earningsSummaryService.createEarningsSummary(id);
         return ResponseEntity.ok(orderDTO);

@@ -1,4 +1,4 @@
-package com.eatzy.restaurant.designpattern.strategy;
+package com.eatzy.restaurant.designpattern.strategy.commission;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -6,7 +6,8 @@ import java.math.RoundingMode;
 import org.springframework.stereotype.Component;
 
 /**
- * Strategy for Premium restaurants: 8% commission fee (lower since they pay a monthly fee).
+ * Strategy for Premium restaurants: 8% commission fee (lower since they pay a
+ * monthly fee).
  */
 @Component("premiumCommission")
 public class PremiumCommissionStrategy implements CommissionStrategy {

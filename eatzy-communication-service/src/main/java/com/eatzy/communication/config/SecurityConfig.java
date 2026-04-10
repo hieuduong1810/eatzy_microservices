@@ -36,6 +36,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authz -> authz
                         // Permit WebSocket raw connections (token validated in Interceptor)
                         .requestMatchers("/ws/**").permitAll()
+                        .requestMatchers("/v3/api-docs", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt

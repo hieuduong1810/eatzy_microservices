@@ -2,6 +2,7 @@ package com.eatzy.payment.dto.response;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import com.eatzy.payment.domain.enums.TransactionType;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -16,7 +17,7 @@ public class ResWalletTransactionDTO {
     private Long walletId;
     private Long orderId;
     private BigDecimal amount;
-    private String transactionType;
+    private TransactionType transactionType;
     private String description;
     private String status;
     private BigDecimal balanceAfter;

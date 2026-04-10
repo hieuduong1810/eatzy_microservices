@@ -11,6 +11,7 @@ import com.eatzy.order.designpattern.adapter.RestaurantServiceClient;
 import com.eatzy.order.designpattern.adapter.SystemConfigServiceClient;
 
 import com.eatzy.common.service.MapboxService;
+import com.eatzy.common.service.RedisGeoService;
 import com.eatzy.order.designpattern.state.OrderStateMachine;
 import com.eatzy.order.designpattern.state.OrderStatus;
 import com.eatzy.order.designpattern.template.DefaultDeliveryFeeCalculator;
@@ -25,10 +26,12 @@ import com.eatzy.order.mapper.OrderMapper;
 import com.eatzy.order.repository.OrderRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.geo.GeoResult;
+import org.springframework.data.geo.GeoResults;
+import org.springframework.data.redis.connection.RedisGeoCommands.GeoLocation;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -60,6 +63,9 @@ public class OrderService {
     private final RestaurantServiceClient restaurantServiceClient;
     private final PaymentServiceClient paymentServiceClient;
     private final SystemConfigServiceClient systemConfigServiceClient;
+    private final RedisGeoService redisGeoService;
+    private final RedisRejectionService redisRejectionService;
+    private final OrderEarningsSummaryService orderEarningsSummaryService;
 
     public OrderService(OrderRepository orderRepository,
             OrderMapper orderMapper,
@@ -70,7 +76,10 @@ public class OrderService {
             AuthServiceClient authServiceClient,
             RestaurantServiceClient restaurantServiceClient,
             PaymentServiceClient paymentServiceClient,
-            SystemConfigServiceClient systemConfigServiceClient) {
+            SystemConfigServiceClient systemConfigServiceClient,
+            RedisRejectionService redisRejectionService,
+            RedisGeoService redisGeoService,
+            OrderEarningsSummaryService orderEarningsSummaryService) {
         this.orderRepository = orderRepository;
         this.orderMapper = orderMapper;
         this.orderEventProducer = orderEventProducer;
@@ -81,6 +90,9 @@ public class OrderService {
         this.restaurantServiceClient = restaurantServiceClient;
         this.paymentServiceClient = paymentServiceClient;
         this.systemConfigServiceClient = systemConfigServiceClient;
+        this.redisRejectionService = redisRejectionService;
+        this.redisGeoService = redisGeoService;
+        this.orderEarningsSummaryService = orderEarningsSummaryService;
     }
 
     // ==================== QUERY METHODS ====================
@@ -411,8 +423,8 @@ public class OrderService {
             throw e; // rethrow to trigger rollback
         } catch (Exception e) {
             log.error("Failed to initiate payment: {}", e.getMessage());
-            // Optionally, we could throw an exception to rollback the order:
-            // throw new IdInvalidException("Failed to initiate payment: " + e.getMessage());
+            // Throw an exception to rollback the order instead of swallowing it
+            throw new IdInvalidException("Failed to initiate payment: " + e.getMessage());
         }
 
         return orderDTO;
@@ -421,6 +433,10 @@ public class OrderService {
     // ==================== STATUS TRANSITION METHODS (State Pattern)
     // ====================
 
+    /**
+     * Restaurant accepts order → status becomes PREPARING → automatically assign driver.
+     * Matches eatzy_backend: acceptOrderByRestaurant calls assignDriver after accepting.
+     */
     @Transactional
     public ResOrderDTO acceptOrderByRestaurant(Long orderId) throws IdInvalidException {
         Order order = getOrderById(orderId);
@@ -435,9 +451,26 @@ public class OrderService {
         order = orderRepository.save(order);
 
         publishStatusChanged(order, previousStatus, "Đơn hàng đã được chấp nhận và đang được chuẩn bị");
+
+        // Automatically assign driver after restaurant accepts (matches eatzy_backend logic)
+        try {
+            assignDriver(orderId);
+        } catch (Exception e) {
+            log.warn("Failed to assign driver immediately for order {}: {}", orderId, e.getMessage());
+            // Don't fail the accept — driver will be assigned later by cleanup service
+        }
+
         return orderMapper.toResOrderDTO(order);
     }
 
+    /**
+     * Assign the closest available driver to an order using Redis GEO + SQL validation + Mapbox.
+     * Matches eatzy_backend 3-step logic:
+     * 1. Find nearby drivers via Redis GEO (fast spatial search)
+     * 2. Query SQL to validate business rules (COD limit, status)
+     * 3. Find closest driver using Mapbox API for real driving distance
+     * 4. Set driver status to UNAVAILABLE
+     */
     @Transactional
     public ResOrderDTO assignDriver(Long orderId) throws IdInvalidException {
         Order order = getOrderById(orderId);
@@ -454,29 +487,112 @@ public class OrderService {
         if (restLat == null || restLng == null)
             throw new IdInvalidException("Restaurant location is required");
 
-        // Find nearby drivers via Auth Service (Adapter Pattern)
+        // STEP 1: Find nearby drivers via Redis GEO (matches eatzy_backend)
         BigDecimal searchRadius = getSystemConfigValue("DRIVER_SEARCH_RADIUS_KM", new BigDecimal("10.0"));
-        List<Map<String, Object>> nearbyDrivers = authServiceClient.findNearbyDrivers(restLat, restLng, searchRadius.doubleValue(), 50);
-        if (nearbyDrivers.isEmpty())
-            throw new IdInvalidException("No drivers found within radius");
+        log.info("🔍 Step 1: Searching drivers using Redis GEO within {} km of restaurant", searchRadius);
 
-        // Assign first available driver
-        Map<String, Object> selectedDriver = nearbyDrivers.get(0);
-        Long driverId = getLongValue(selectedDriver, "userId");
-        if (driverId == null)
-            throw new IdInvalidException("Driver user not found");
+        GeoResults<GeoLocation<Object>> geoResults = redisGeoService.findNearbyDrivers(
+                restLat, restLng, searchRadius.doubleValue(), 50);
 
-        order.setDriverId(driverId);
+        if (geoResults == null || geoResults.getContent().isEmpty())
+            throw new IdInvalidException("No drivers found within " + searchRadius + " km radius");
+
+        List<Map<String, Object>> nearbyDrivers = convertGeoResultsToDriverList(geoResults);
+        log.info("📍 Found {} drivers in Redis GEO within radius", nearbyDrivers.size());
+
+        // STEP 2: Query SQL to validate business rules (COD limit, status)
+        List<Long> nearbyDriverIds = nearbyDrivers.stream()
+                .map(d -> getLongValue(d, "userId"))
+                .filter(id -> id != null)
+                .collect(Collectors.toList());
+
+        BigDecimal minCodLimit = "COD".equals(order.getPaymentMethod()) ? order.getTotalAmount() : null;
+        if (minCodLimit != null) {
+            log.info("💰 Step 2: Validating COD limit >= {} for {} drivers", minCodLimit, nearbyDriverIds.size());
+        } else {
+            log.info("💳 Step 2: Validating online payment readiness for {} drivers", nearbyDriverIds.size());
+        }
+
+        List<Long> validDriverIds = authServiceClient.validateDriversByIds(nearbyDriverIds, minCodLimit);
+
+        if (validDriverIds.isEmpty())
+            throw new IdInvalidException("No qualified drivers found (failed business rules validation)");
+
+        log.info("✅ {} drivers passed status/COD validation", validDriverIds.size());
+
+        // STEP 2b: Check wallet balance > 0 via payment-service (matches eatzy_backend)
+        try {
+            List<Long> driversWithBalance = paymentServiceClient.validateDriverWalletBalances(validDriverIds);
+            validDriverIds = driversWithBalance;
+            log.info("💰 {} drivers have positive wallet balance", validDriverIds.size());
+        } catch (Exception e) {
+            log.warn("Failed to validate wallet balances, skipping balance check: {}", e.getMessage());
+        }
+
+        if (validDriverIds.isEmpty())
+            throw new IdInvalidException("No qualified drivers found (all drivers have zero wallet balance)");
+
+        // Filter nearbyDrivers to only include validated ones
+        final List<Long> finalValidDriverIds = validDriverIds;
+        List<Map<String, Object>> candidateDrivers = nearbyDrivers.stream()
+                .filter(d -> {
+                    Long id = getLongValue(d, "userId");
+                    return id != null && finalValidDriverIds.contains(id);
+                })
+                .collect(Collectors.toList());
+
+        // STEP 3: Find closest driver using Mapbox API for real driving distance
+        log.info("🚗 Step 3: Calculating real driving distances using Mapbox API");
+        Long closestDriverId = null;
+        BigDecimal shortestDistance = null;
+
+        for (Map<String, Object> driverData : candidateDrivers) {
+            Long driverId = getLongValue(driverData, "userId");
+            BigDecimal driverLat = getBigDecimalValue(driverData, "latitude");
+            BigDecimal driverLng = getBigDecimalValue(driverData, "longitude");
+
+            if (driverId == null || driverLat == null || driverLng == null) continue;
+
+            BigDecimal drivingDistance = mapboxService.getDrivingDistance(
+                    driverLat, driverLng, restLat, restLng);
+
+            if (drivingDistance == null) {
+                log.warn("Failed to get driving distance from Mapbox for driver {}", driverId);
+                continue;
+            }
+
+            if (shortestDistance == null || drivingDistance.compareTo(shortestDistance) < 0) {
+                shortestDistance = drivingDistance;
+                closestDriverId = driverId;
+            }
+        }
+
+        if (closestDriverId == null) {
+            throw new IdInvalidException("Failed to calculate driving distance to available drivers");
+        }
+
+        log.info("🎯 Assigned driver {} (distance: {} km) to order {}", closestDriverId, shortestDistance, orderId);
+
+        order.setDriverId(closestDriverId);
         order.setAssignedAt(Instant.now());
         order = orderRepository.save(order);
 
-        // Update driver status
-        authServiceClient.updateDriverStatus(driverId, "UNAVAILABLE");
+        // Update driver status to UNAVAILABLE (also removes from Redis GEO)
+        try {
+            authServiceClient.updateDriverStatus(closestDriverId, "UNAVAILABLE");
+            log.info("🔴 Set driver {} status to UNAVAILABLE after assignment", closestDriverId);
+        } catch (Exception e) {
+            log.error("Failed to update driver {} status to UNAVAILABLE: {}", closestDriverId, e.getMessage());
+        }
 
         publishStatusChanged(order, order.getOrderStatus(), "Tài xế đã được phân công");
         return orderMapper.toResOrderDTO(order);
     }
 
+    /**
+     * Restaurant rejects order.
+     * Matches eatzy_backend: includes refund logic for already-paid orders (WALLET/VNPAY).
+     */
     @Transactional
     public ResOrderDTO rejectOrderByRestaurant(Long orderId, String cancellationReason) throws IdInvalidException {
         Order order = getOrderById(orderId);
@@ -488,12 +604,20 @@ public class OrderService {
 
         order.setOrderStatus(OrderStatus.REJECTED.name());
         order.setCancellationReason(cancellationReason);
+
+        // If payment was already made (WALLET or VNPAY), process refund (matches eatzy_backend)
+        processRefundIfNeeded(order);
+
         order = orderRepository.save(order);
 
         publishStatusChanged(order, previousStatus, "Đơn hàng đã bị từ chối bởi nhà hàng");
         return orderMapper.toResOrderDTO(order);
     }
 
+    /**
+     * Customer cancels order.
+     * Matches eatzy_backend: includes refund logic for already-paid orders (WALLET/VNPAY).
+     */
     @Transactional
     public ResOrderDTO cancelOrder(Long orderId, String cancellationReason) throws IdInvalidException {
         Order order = getOrderById(orderId);
@@ -505,6 +629,10 @@ public class OrderService {
 
         order.setOrderStatus(OrderStatus.REJECTED.name());
         order.setCancellationReason(cancellationReason);
+
+        // If payment was already made (WALLET or VNPAY), process refund (matches eatzy_backend)
+        processRefundIfNeeded(order);
+
         order = orderRepository.save(order);
 
         publishStatusChanged(order, previousStatus, "Đơn hàng đã bị hủy");
@@ -527,6 +655,13 @@ public class OrderService {
         return orderMapper.toResOrderDTO(order);
     }
 
+    /**
+     * Driver accepts order (internal method used by both manual accept and auto-accept).
+     * Matches eatzy_backend: internalAcceptOrderByDriver
+     * - If COD payment: call processCODPaymentOnDelivery
+     * - Set status to DRIVER_ASSIGNED
+     * - Clear assignedAt
+     */
     @Transactional
     public ResOrderDTO acceptOrderByDriver(Long orderId, Long driverId) throws IdInvalidException {
         Order order = getOrderById(orderId);
@@ -537,17 +672,45 @@ public class OrderService {
             throw new IdInvalidException("This order is not assigned to driver " + driverId);
         }
 
-        String previousStatus = order.getOrderStatus();
-        OrderStateMachine.transition(previousStatus, OrderStatus.DRIVER_ASSIGNED.name());
+        // If COD payment, process COD payment on delivery (matches eatzy_backend)
+        if ("COD".equals(order.getPaymentMethod())) {
+            try {
+                Map<String, Object> paymentResult = paymentServiceClient.processCODPaymentOnDelivery(
+                        order.getId(), driverId, order.getTotalAmount());
+                if (paymentResult != null && paymentResult.containsKey("success")
+                        && !(Boolean) paymentResult.get("success")) {
+                    throw new IdInvalidException(paymentResult.get("message") != null
+                            ? (String) paymentResult.get("message")
+                            : "COD payment processing failed");
+                }
+            } catch (IdInvalidException e) {
+                throw e;
+            } catch (Exception e) {
+                log.error("Failed to process COD payment for order {}: {}", orderId, e.getMessage());
+                throw new IdInvalidException("Failed to process COD payment: " + e.getMessage());
+            }
+        }
 
+        String previousStatus = order.getOrderStatus();
+
+        // Update status to DRIVER_ASSIGNED and clear assignedAt (matches eatzy_backend)
         order.setOrderStatus(OrderStatus.DRIVER_ASSIGNED.name());
-        order.setAssignedAt(null);
+        order.setAssignedAt(null); // Clear assignedAt after successful acceptance
         order = orderRepository.save(order);
 
         publishStatusChanged(order, previousStatus, "Tài xế đã chấp nhận đơn hàng");
         return orderMapper.toResOrderDTO(order);
     }
 
+    /**
+     * Driver rejects order → find replacement driver.
+     * Matches eatzy_backend: rejectOrderByDriver
+     * 1. Set current driver to AVAILABLE
+     * 2. Save rejection to Redis
+     * 3. Find nearby drivers excluding rejected ones
+     * 4. Use Mapbox to find closest driver
+     * 5. Assign new driver or set driver to null if none found
+     */
     @Transactional
     public ResOrderDTO rejectOrderByDriver(Long orderId, Long driverId) throws IdInvalidException {
         Order order = getOrderById(orderId);
@@ -558,13 +721,157 @@ public class OrderService {
             throw new IdInvalidException("This order is not assigned to you");
         }
 
-        // Set driver back to AVAILABLE
-        authServiceClient.updateDriverStatus(driverId, "AVAILABLE");
+        // Save rejection to Redis (matches eatzy_backend)
+        redisRejectionService.addRejectedDriver(orderId, driverId);
+        log.info("💾 Saved driver {} rejection for order {} to Redis", driverId, orderId);
 
-        // Clear driver assignment, attempt to find another
-        order.setDriverId(null);
-        order.setAssignedAt(null);
+        // Set the rejecting driver's status back to AVAILABLE (matches eatzy_backend)
+        try {
+            authServiceClient.updateDriverStatus(driverId, "AVAILABLE");
+            log.info("🟢 Set driver {} status to AVAILABLE after rejecting order {}", driverId, orderId);
+        } catch (Exception e) {
+            log.error("Failed to update driver {} profile status to AVAILABLE: {}", driverId, e.getMessage());
+        }
+
+        // Get list of all rejected driver IDs for this order from Redis
+        List<Long> rejectedDriverIds = redisRejectionService.getRejectedDriverIds(orderId);
+
+        // Get restaurant location
+        Map<String, Object> restData = restaurantServiceClient.getRestaurantById(order.getRestaurantId());
+        if (restData == null) {
+            throw new IdInvalidException("Restaurant location is required to find drivers");
+        }
+        BigDecimal restLat = getBigDecimalValue(restData, "latitude");
+        BigDecimal restLng = getBigDecimalValue(restData, "longitude");
+        if (restLat == null || restLng == null) {
+            throw new IdInvalidException("Restaurant location is required to find drivers");
+        }
+
+        // Search radius
+        BigDecimal radiusKm = getSystemConfigValue("DRIVER_SEARCH_RADIUS_KM", new BigDecimal("10.0"));
+
+        log.info("🔍 Searching for alternative drivers via Redis GEO (excluding {} rejected drivers)", rejectedDriverIds.size());
+
+        // STEP 1: Find nearby drivers via Redis GEO
+        GeoResults<GeoLocation<Object>> geoResults = redisGeoService.findNearbyDrivers(
+                restLat, restLng, radiusKm.doubleValue(), 100);
+
+        if (geoResults == null || geoResults.getContent().isEmpty()) {
+            log.warn("No alternative drivers found via Redis GEO");
+            order.setDriverId(null);
+            order.setAssignedAt(null);
+            order = orderRepository.save(order);
+            return orderMapper.toResOrderDTO(order);
+        }
+
+        List<Map<String, Object>> nearbyDrivers = convertGeoResultsToDriverList(geoResults);
+
+        // Filter out rejected drivers
+        List<Long> nearbyDriverIds = nearbyDrivers.stream()
+                .map(d -> getLongValue(d, "userId"))
+                .filter(id -> id != null && !rejectedDriverIds.contains(id))
+                .collect(Collectors.toList());
+
+        log.info("📍 Found {} available drivers (after excluding rejected)", nearbyDriverIds.size());
+
+        if (nearbyDriverIds.isEmpty()) {
+            order.setDriverId(null);
+            order.setAssignedAt(null);
+            order = orderRepository.save(order);
+            return orderMapper.toResOrderDTO(order);
+        }
+
+        // STEP 2: Query SQL to validate business rules (COD limit, status)
+        BigDecimal minCodLimit = "COD".equals(order.getPaymentMethod()) ? order.getTotalAmount() : null;
+        List<Long> validDriverIds = authServiceClient.validateDriversByIds(nearbyDriverIds, minCodLimit);
+
+        if (validDriverIds.isEmpty()) {
+            log.warn("No qualified drivers found after SQL validation");
+            order.setDriverId(null);
+            order.setAssignedAt(null);
+            order = orderRepository.save(order);
+            return orderMapper.toResOrderDTO(order);
+        }
+
+        log.info("✅ {} drivers passed SQL validation", validDriverIds.size());
+
+        // STEP 2b: Check wallet balance > 0 via payment-service (matches eatzy_backend)
+        try {
+            List<Long> driversWithBalance = paymentServiceClient.validateDriverWalletBalances(validDriverIds);
+            validDriverIds = driversWithBalance;
+            log.info("💰 {} drivers have positive wallet balance", validDriverIds.size());
+        } catch (Exception e) {
+            log.warn("Failed to validate wallet balances, skipping balance check: {}", e.getMessage());
+        }
+
+        if (validDriverIds.isEmpty()) {
+            log.warn("No qualified drivers found (all drivers have zero wallet balance)");
+            order.setDriverId(null);
+            order.setAssignedAt(null);
+            order = orderRepository.save(order);
+            return orderMapper.toResOrderDTO(order);
+        }
+
+        // Filter nearbyDrivers to only include validated ones
+        final List<Long> finalValidDriverIds = validDriverIds;
+        List<Map<String, Object>> candidateDrivers = nearbyDrivers.stream()
+                .filter(d -> {
+                    Long id = getLongValue(d, "userId");
+                    return id != null && finalValidDriverIds.contains(id);
+                })
+                .collect(Collectors.toList());
+
+        // STEP 3: Find closest driver using Mapbox API (matches eatzy_backend)
+        Long closestDriverId = null;
+        BigDecimal shortestDistance = null;
+
+        for (Map<String, Object> driverData : candidateDrivers) {
+            Long candidateId = getLongValue(driverData, "userId");
+            BigDecimal driverLat = getBigDecimalValue(driverData, "latitude");
+            BigDecimal driverLng = getBigDecimalValue(driverData, "longitude");
+
+            if (candidateId == null || driverLat == null || driverLng == null) continue;
+
+            BigDecimal drivingDistance = mapboxService.getDrivingDistance(
+                    driverLat, driverLng, restLat, restLng);
+
+            if (drivingDistance == null) {
+                log.warn("Failed to get Mapbox distance for driver {}", candidateId);
+                continue;
+            }
+
+            if (shortestDistance == null || drivingDistance.compareTo(shortestDistance) < 0) {
+                shortestDistance = drivingDistance;
+                closestDriverId = candidateId;
+            }
+        }
+
+        if (closestDriverId != null) {
+            // Assign to next driver
+            order.setDriverId(closestDriverId);
+            order.setAssignedAt(Instant.now());
+            log.info("🎯 Reassigned order {} to driver {}", orderId, closestDriverId);
+
+            // Set the new driver's status to UNAVAILABLE (also removes from Redis GEO)
+            try {
+                authServiceClient.updateDriverStatus(closestDriverId, "UNAVAILABLE");
+                log.info("🔴 Set driver {} status to UNAVAILABLE after reassignment", closestDriverId);
+            } catch (Exception e) {
+                log.error("Failed to update driver {} status to UNAVAILABLE: {}", closestDriverId, e.getMessage());
+            }
+        } else {
+            // Failed to calculate distance for all candidates
+            order.setDriverId(null);
+            order.setAssignedAt(null);
+            log.warn("Failed to find closest driver for order {} - Mapbox distance calculation failed", orderId);
+        }
+
         order = orderRepository.save(order);
+
+        // Notify new driver about order assignment
+        if (order.getDriverId() != null) {
+            publishStatusChanged(order, order.getOrderStatus(), "Tài xế mới đã được phân công");
+        }
 
         return orderMapper.toResOrderDTO(order);
     }
@@ -632,8 +939,29 @@ public class OrderService {
 
         publishStatusChanged(order, previousStatus, "Đơn hàng đã được giao thành công!");
 
+        // Update driver's completed trips count and set status to AVAILABLE (matches eatzy_backend)
+        try {
+            authServiceClient.incrementCompletedTrips(driverId);
+            log.info("🏁 Incremented completed trips for driver {}", driverId);
+        } catch (Exception e) {
+            log.error("Failed to increment completed trips for driver {}: {}", driverId, e.getMessage());
+        }
+
         // Update driver status back to AVAILABLE
-        authServiceClient.updateDriverStatus(driverId, "AVAILABLE");
+        try {
+            authServiceClient.updateDriverStatus(driverId, "AVAILABLE");
+            log.info("🟢 Set driver {} status to AVAILABLE after delivery", driverId);
+        } catch (Exception e) {
+            log.error("Failed to update driver {} status to AVAILABLE: {}", driverId, e.getMessage());
+        }
+
+        // Create earnings summary when order is delivered (matches eatzy_backend)
+        try {
+            orderEarningsSummaryService.createEarningsSummary(orderId);
+            log.info("💰 Created earnings summary for delivered order {}", orderId);
+        } catch (Exception e) {
+            log.error("Failed to create earnings summary for order {}: {}", orderId, e.getMessage());
+        }
 
         return orderMapper.toResOrderDTO(order);
     }
@@ -683,6 +1011,24 @@ public class OrderService {
 
     // ==================== HELPER METHODS ====================
 
+    /**
+     * Process refund if order was already paid via WALLET or VNPAY.
+     * Matches eatzy_backend refund logic in cancelOrder and rejectOrderByRestaurant.
+     */
+    private void processRefundIfNeeded(Order order) {
+        if ("PAID".equals(order.getPaymentStatus()) &&
+                ("WALLET".equals(order.getPaymentMethod()) || "VNPAY".equals(order.getPaymentMethod()))) {
+            try {
+                paymentServiceClient.processRefund(order.getId(), order.getCustomerId(), order.getTotalAmount());
+                order.setPaymentStatus("REFUNDED");
+                log.info("💰 Processed refund for order {} (method: {}, amount: {})",
+                        order.getId(), order.getPaymentMethod(), order.getTotalAmount());
+            } catch (Exception e) {
+                log.error("Failed to process refund for order {}: {}", order.getId(), e.getMessage());
+            }
+        }
+    }
+
     private void publishStatusChanged(Order order, String previousStatus, String message) {
         orderEventProducer.publishOrderStatusChanged(new OrderStatusChangedEvent(
                 order.getId(), previousStatus, order.getOrderStatus(),
@@ -726,6 +1072,40 @@ public class OrderService {
         if (value instanceof Number)
             return ((Number) value).longValue();
         return Long.parseLong(value.toString());
+    }
+
+    /**
+     * Convert Redis GeoResults to a list of driver data maps.
+     * Each map contains: userId (Long), latitude (BigDecimal), longitude (BigDecimal), distance (Double in km).
+     */
+    private List<Map<String, Object>> convertGeoResultsToDriverList(GeoResults<GeoLocation<Object>> geoResults) {
+        List<Map<String, Object>> drivers = new ArrayList<>();
+        for (GeoResult<GeoLocation<Object>> result : geoResults.getContent()) {
+            GeoLocation<Object> location = result.getContent();
+            String driverIdStr = location.getName().toString();
+
+            Map<String, Object> driverMap = new HashMap<>();
+            try {
+                driverMap.put("userId", Long.parseLong(driverIdStr));
+            } catch (NumberFormatException e) {
+                log.warn("Invalid driver ID in Redis GEO: {}", driverIdStr);
+                continue;
+            }
+
+            // GeoLocation point: x = longitude, y = latitude
+            if (location.getPoint() != null) {
+                driverMap.put("latitude", BigDecimal.valueOf(location.getPoint().getY()));
+                driverMap.put("longitude", BigDecimal.valueOf(location.getPoint().getX()));
+            }
+
+            // Distance in km
+            if (result.getDistance() != null) {
+                driverMap.put("distance", result.getDistance().getValue());
+            }
+
+            drivers.add(driverMap);
+        }
+        return drivers;
     }
 
     private BigDecimal getSystemConfigValue(String key, BigDecimal defaultValue) {

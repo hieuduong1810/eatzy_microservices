@@ -3,6 +3,7 @@ package com.eatzy.payment.designpattern.strategy;
 import com.eatzy.common.exception.IdInvalidException;
 import com.eatzy.payment.designpattern.adapter.AuthServiceClient;
 import com.eatzy.payment.designpattern.adapter.OrderServiceClient;
+import com.eatzy.payment.domain.enums.TransactionType;
 import com.eatzy.payment.domain.Wallet;
 import com.eatzy.payment.domain.WalletTransaction;
 import com.eatzy.payment.dto.request.ReqPaymentInitiateDTO;
@@ -25,9 +26,9 @@ public class WalletStrategy implements PaymentStrategy {
     private final OrderServiceClient orderServiceClient;
 
     public WalletStrategy(WalletService walletService,
-                          WalletTransactionService walletTransactionService,
-                          AuthServiceClient authServiceClient,
-                          OrderServiceClient orderServiceClient) {
+            WalletTransactionService walletTransactionService,
+            AuthServiceClient authServiceClient,
+            OrderServiceClient orderServiceClient) {
         this.walletService = walletService;
         this.walletTransactionService = walletTransactionService;
         this.authServiceClient = authServiceClient;
@@ -75,7 +76,7 @@ public class WalletStrategy implements PaymentStrategy {
 
         WalletTransaction customerTransaction = WalletTransaction.builder()
                 .wallet(customerWallet)
-                .transactionType("PAYMENT")
+                .transactionType(TransactionType.PAYMENT)
                 .amount(totalAmount.negate())
                 .balanceAfter(customerWallet.getBalance().subtract(totalAmount))
                 .description("Payment for order #" + orderId)
@@ -91,7 +92,7 @@ public class WalletStrategy implements PaymentStrategy {
             if (adminWallet != null) {
                 WalletTransaction adminTransaction = WalletTransaction.builder()
                         .wallet(adminWallet)
-                        .transactionType("PAYMENT_RECEIVED")
+                        .transactionType(TransactionType.PAYMENT_RECEIVED)
                         .amount(totalAmount)
                         .balanceAfter(adminWallet.getBalance().add(totalAmount))
                         .description("Payment received from order #" + orderId)
@@ -103,20 +104,10 @@ public class WalletStrategy implements PaymentStrategy {
             }
         }
 
-        // Update Order status to PAID
-        Map<String, Object> orderUpdate = new HashMap<>();
-        orderUpdate.put("id", orderId);
-        orderUpdate.put("paymentStatus", "PAID");
-        try {
-            orderServiceClient.updateOrder(orderUpdate);
-        } catch (Exception e) {
-            // If order updating fails, it might roll back transaction or we log it
-            throw new Exception("Failed to update order status to PAID: " + e.getMessage());
-        }
-
         result.put("success", true);
         result.put("message", "Payment successful");
         result.put("redirect", false);
+        result.put("status", "PAID");
         return result;
     }
 

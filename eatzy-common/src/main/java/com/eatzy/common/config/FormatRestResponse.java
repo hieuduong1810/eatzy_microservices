@@ -1,5 +1,6 @@
-package com.eatzy.auth.util;
+package com.eatzy.common.config;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.core.MethodParameter;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
@@ -13,7 +14,15 @@ import jakarta.servlet.http.HttpServletResponse;
 import com.eatzy.common.dto.RestResponse;
 import com.eatzy.common.annotation.ApiMessage;
 
+/**
+ * Shared ResponseBodyAdvice that wraps all successful JSON responses 
+ * into RestResponse{statusCode, data, message}.
+ * 
+ * Auto-activated in any service that has spring-boot-starter-web on classpath.
+ * Skips: Swagger/OpenAPI endpoints, error responses (4xx/5xx), String and Resource bodies.
+ */
 @ControllerAdvice
+@ConditionalOnClass(name = "org.springframework.web.servlet.DispatcherServlet")
 public class FormatRestResponse implements ResponseBodyAdvice<Object> {
 
     @Override

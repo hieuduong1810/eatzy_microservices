@@ -12,13 +12,25 @@ import org.springframework.stereotype.Service;
 
 import com.eatzy.common.dto.ResultPaginationDTO;
 import com.eatzy.common.exception.IdInvalidException;
-import com.eatzy.restaurant.designpattern.adapter.LocationService;
+import com.eatzy.common.service.MapboxService;
 import com.eatzy.restaurant.designpattern.observer.RestaurantApprovedEvent;
-import com.eatzy.restaurant.designpattern.strategy.CommissionStrategy;
+import com.eatzy.restaurant.designpattern.strategy.commission.CommissionStrategy;
+import com.eatzy.restaurant.designpattern.strategy.ranking.GuestRankingStrategy;
+import com.eatzy.restaurant.designpattern.strategy.ranking.PersonalizedRankingStrategy;
 import com.eatzy.restaurant.domain.Restaurant;
 import com.eatzy.restaurant.domain.res.ResRestaurantDTO;
+import com.eatzy.restaurant.domain.res.ResRestaurantMagazineDTO;
+import com.eatzy.restaurant.client.InteractionServiceClient;
+import com.eatzy.restaurant.client.dto.BatchScoreRequestDTO;
+import com.eatzy.restaurant.client.dto.BatchScoreResponseDTO;
+import com.eatzy.common.util.SecurityUtils;
 import com.eatzy.restaurant.mapper.RestaurantMapper;
 import com.eatzy.restaurant.repository.RestaurantRepository;
+
+import java.util.Optional;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.HashMap;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -28,20 +40,29 @@ public class RestaurantService {
 
     private final RestaurantRepository restaurantRepository;
     private final ApplicationEventPublisher eventPublisher; // Observer Pattern
-    private final LocationService locationService; // Adapter Pattern
+    private final MapboxService mapboxService;
     private final Map<String, CommissionStrategy> strategyMap; // Strategy Pattern
     private final RestaurantMapper restaurantMapper;
+    private final GuestRankingStrategy guestRankingStrategy;
+    private final PersonalizedRankingStrategy personalizedRankingStrategy;
+    private final InteractionServiceClient interactionServiceClient;
 
     public RestaurantService(RestaurantRepository restaurantRepository,
             ApplicationEventPublisher eventPublisher,
-            LocationService locationService,
+            MapboxService mapboxService,
             Map<String, CommissionStrategy> strategyMap,
-            RestaurantMapper restaurantMapper) {
+            RestaurantMapper restaurantMapper,
+            GuestRankingStrategy guestRankingStrategy,
+            PersonalizedRankingStrategy personalizedRankingStrategy,
+            InteractionServiceClient interactionServiceClient) {
         this.restaurantRepository = restaurantRepository;
         this.eventPublisher = eventPublisher;
-        this.locationService = locationService;
+        this.mapboxService = mapboxService;
         this.strategyMap = strategyMap;
         this.restaurantMapper = restaurantMapper;
+        this.guestRankingStrategy = guestRankingStrategy;
+        this.personalizedRankingStrategy = personalizedRankingStrategy;
+        this.interactionServiceClient = interactionServiceClient;
     }
 
     // ==================== CRUD ====================
@@ -200,11 +221,76 @@ public class RestaurantService {
             throw new IdInvalidException("Restaurant does not have location data");
         }
 
-        // Adapter Pattern: Service chi goi locationService.calculateDistance()
-        // ma KHONG CAN BIET phia sau dang xai Google Maps hay Mapbox
-        return locationService.calculateDistance(
+        // Service truc tiep goi mapboxService tu common
+        return mapboxService.getDrivingDistance(
                 userLat, userLng,
                 restaurant.getLatitude(), restaurant.getLongitude());
+    }
+
+    public ResultPaginationDTO getNearbyRestaurants(BigDecimal lat, BigDecimal lng, String keyword,
+            Specification<Restaurant> spec, Pageable pageable) {
+        // Lay tat ca nha hang de filter va sap xep trong bo nho (giong monolith)
+        List<Restaurant> restaurants = restaurantRepository.findAll(spec);
+
+        // Filter nha hang dang hoat dong
+        restaurants = restaurants.stream()
+                .filter(r -> "ACTIVE".equals(r.getStatus()) || "OPEN".equals(r.getStatus()))
+                .collect(Collectors.toList());
+
+        // 1. Get current userId
+        Long userId = null;
+        try {
+            userId = SecurityUtils.getCurrentUserId();
+        } catch (Exception e) {
+            log.trace("User unauthenticated for nearby restaurants search");
+        }
+
+        // 2. Ap dung Design Pattern: Strategy Pattern cho Ranking
+        List<ResRestaurantMagazineDTO> rankedList;
+        if (userId != null) {
+            rankedList = personalizedRankingStrategy.calculateAndSort(restaurants, lat, lng, userId);
+        } else {
+            rankedList = guestRankingStrategy.calculateAndSort(restaurants, lat, lng, null);
+        }
+
+        // 3. SubList Pagination trong Memory
+        int start = (int) pageable.getOffset();
+        int end = Math.min((start + pageable.getPageSize()), rankedList.size());
+
+        List<ResRestaurantMagazineDTO> pagedList = new ArrayList<>();
+        if (start < rankedList.size()) {
+            pagedList = rankedList.subList(start, end);
+        }
+
+        ResultPaginationDTO result = new ResultPaginationDTO();
+        ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta();
+        meta.setPage(pageable.getPageNumber() + 1);
+        meta.setPageSize(pageable.getPageSize());
+        meta.setTotal((long) rankedList.size());
+        meta.setPages((int) Math.ceil((double) rankedList.size() / pageable.getPageSize()));
+        result.setMeta(meta);
+        result.setResult(pagedList);
+        return result;
+    }
+
+    public ResRestaurantDTO getRestaurantDTOBySlug(String slug) throws IdInvalidException {
+        Restaurant restaurant = restaurantRepository.findBySlug(slug)
+                .orElseThrow(() -> new IdInvalidException("Restaurant not found by slug: " + slug));
+        return restaurantMapper.convertToDTO(restaurant);
+    }
+
+    public void openCurrentRestaurant(Long ownerId) throws IdInvalidException {
+        Restaurant restaurant = restaurantRepository.findByOwnerId(ownerId)
+                .orElseThrow(() -> new IdInvalidException("Owner does not have a restaurant: " + ownerId));
+        restaurant.setStatus("OPEN");
+        restaurantRepository.save(restaurant);
+    }
+
+    public void closeCurrentRestaurant(Long ownerId) throws IdInvalidException {
+        Restaurant restaurant = restaurantRepository.findByOwnerId(ownerId)
+                .orElseThrow(() -> new IdInvalidException("Owner does not have a restaurant: " + ownerId));
+        restaurant.setStatus("CLOSED");
+        restaurantRepository.save(restaurant);
     }
 
     // ==================== HELPER ====================

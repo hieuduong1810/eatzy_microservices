@@ -10,6 +10,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
+
+import com.eatzy.interaction.dto.request.BatchScoreRequestDTO;
+import com.eatzy.interaction.dto.response.BatchScoreResponseDTO;
+import com.eatzy.interaction.dto.response.RestaurantScoreDTO;
+import com.eatzy.interaction.dto.response.TypeScoreDTO;
 
 /**
  * Service to track user behavior and update scoring for restaurant recommendations
@@ -126,5 +132,32 @@ public class UserScoringService {
             score.setScore(score.getScore() + points);
             userTypeScoreRepository.save(score);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public BatchScoreResponseDTO getBatchScores(BatchScoreRequestDTO request) {
+        if (request.getUserId() == null) {
+            return new BatchScoreResponseDTO(List.of(), List.of());
+        }
+
+        List<RestaurantScoreDTO> restaurantScores = List.of();
+        if (request.getRestaurantIds() != null && !request.getRestaurantIds().isEmpty()) {
+            restaurantScores = userRestaurantScoreRepository
+                    .findByUserIdAndRestaurantIdIn(request.getUserId(), request.getRestaurantIds())
+                    .stream()
+                    .map(score -> new RestaurantScoreDTO(score.getRestaurantId(), score.getScore()))
+                    .collect(Collectors.toList());
+        }
+
+        List<TypeScoreDTO> typeScores = List.of();
+        if (request.getTypeIds() != null && !request.getTypeIds().isEmpty()) {
+            typeScores = userTypeScoreRepository
+                    .findByUserIdAndRestaurantTypeIdIn(request.getUserId(), request.getTypeIds())
+                    .stream()
+                    .map(score -> new TypeScoreDTO(score.getRestaurantTypeId(), score.getScore()))
+                    .collect(Collectors.toList());
+        }
+
+        return new BatchScoreResponseDTO(restaurantScores, typeScores);
     }
 }

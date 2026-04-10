@@ -29,6 +29,11 @@ public class MapboxService {
             return null;
         }
 
+        // Bỏ qua gọi API Mapbox nếu 2 tọa độ trùng nhau
+        if (startLat.compareTo(endLat) == 0 && startLon.compareTo(endLon) == 0) {
+            return BigDecimal.ZERO;
+        }
+
         try {
             String url = UriComponentsBuilder.fromUriString("https://api.mapbox.com/directions/v5/mapbox/driving/")
                 .path(startLon + "," + startLat + ";" + endLon + "," + endLat)

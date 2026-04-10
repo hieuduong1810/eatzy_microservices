@@ -41,4 +41,7 @@ dependencies {
 
     // Spring Filter
     implementation("com.turkraft.springfilter:jpa:3.1.7")
+
+    // OpenAPI / Swagger
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6")
 }

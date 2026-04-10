@@ -1,4 +1,4 @@
-package com.eatzy.restaurant.designpattern.strategy;
+package com.eatzy.restaurant.designpattern.strategy.commission;
 
 import java.math.BigDecimal;
 

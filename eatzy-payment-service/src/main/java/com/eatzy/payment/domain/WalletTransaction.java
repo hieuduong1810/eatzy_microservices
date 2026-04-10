@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
 import java.time.Instant;
+import com.eatzy.payment.domain.enums.TransactionType;
 
 @Entity
 @Table(name = "wallet_transactions")
@@ -28,7 +29,8 @@ public class WalletTransaction {
     @Column(precision = 15, scale = 2)
     private BigDecimal amount;
 
-    private String transactionType;
+    @Enumerated(EnumType.STRING)
+    private TransactionType transactionType;
 
     @Column(columnDefinition = "TEXT")
     private String description;

@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import com.eatzy.payment.domain.WalletTransaction;
+import com.eatzy.payment.domain.enums.TransactionType;
 
 import java.util.List;
 
@@ -15,7 +16,7 @@ public interface WalletTransactionRepository
 
     List<WalletTransaction> findByOrderId(Long orderId);
 
-    List<WalletTransaction> findByWalletIdAndTransactionType(Long walletId, String transactionType);
+    List<WalletTransaction> findByWalletIdAndTransactionType(Long walletId, TransactionType transactionType);
 
     List<WalletTransaction> findByWalletIdOrderByCreatedAtDesc(Long walletId);
 }

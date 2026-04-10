@@ -1,6 +1,7 @@
 package com.eatzy.auth.controller;
 
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.turkraft.springfilter.boot.Filter;
@@ -23,6 +24,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
+import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 
@@ -117,7 +120,42 @@ public class DriverProfileController {
 
     @GetMapping("/driver-profiles/count")
     @ApiMessage("Count drivers by status")
-    public ResponseEntity<Long> countDrivers(@org.springframework.web.bind.annotation.RequestParam("status") String status) {
+    public ResponseEntity<Long> countDrivers(@RequestParam("status") String status) {
         return ResponseEntity.ok(driverProfileService.countDriversByStatus(status));
+    }
+
+
+
+    @PutMapping("/driver-profiles/user/{userId}/status")
+    @ApiMessage("Update driver status by user id")
+    public ResponseEntity<Void> updateDriverStatus(
+            @PathVariable("userId") Long userId,
+            @RequestParam("status") String status) throws IdInvalidException {
+        driverProfileService.updateDriverProfileStatusByUserId(userId, status);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Increment driver's completed trips counter.
+     * Called by order-service when order is delivered (matches eatzy_backend).
+     */
+    @PutMapping("/driver-profiles/user/{userId}/increment-completed-trips")
+    @ApiMessage("Increment driver completed trips")
+    public ResponseEntity<Void> incrementCompletedTrips(@PathVariable("userId") Long userId) throws IdInvalidException {
+        driverProfileService.incrementCompletedTrips(userId);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Validate driver IDs against SQL business rules (status = AVAILABLE, COD limit).
+     * Matches eatzy_backend STEP 2: Query SQL to validate business rules.
+     */
+    @PostMapping("/driver-profiles/validate-drivers")
+    @ApiMessage("Validate drivers by user IDs against business rules")
+    public ResponseEntity<List<Long>> validateDriversByIds(
+            @RequestBody List<Long> userIds,
+            @RequestParam(value = "minCodLimit", required = false) BigDecimal minCodLimit) {
+        List<Long> validDriverIds = driverProfileService.validateDriversByUserIds(userIds, minCodLimit);
+        return ResponseEntity.ok(validDriverIds);
     }
 }

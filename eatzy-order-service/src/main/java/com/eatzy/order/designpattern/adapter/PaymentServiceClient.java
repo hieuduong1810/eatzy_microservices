@@ -3,6 +3,7 @@ package com.eatzy.order.designpattern.adapter;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -15,6 +16,25 @@ public interface PaymentServiceClient {
 
     @PostMapping("/api/v1/payment/initiate")
     java.util.Map<String, Object> initiatePayment(@RequestBody ReqPaymentInitiateDTO req);
+
+    @PostMapping("/api/v1/payment/refund")
+    java.util.Map<String, Object> processRefund(
+            @RequestParam("orderId") Long orderId,
+            @RequestParam("customerId") Long customerId,
+            @RequestParam("amount") BigDecimal amount);
+
+    @PostMapping("/api/v1/payment/cod/delivery")
+    java.util.Map<String, Object> processCODPaymentOnDelivery(
+            @RequestParam("orderId") Long orderId,
+            @RequestParam("driverId") Long driverId,
+            @RequestParam("amount") BigDecimal amount);
+
+    /**
+     * Validate which driver user IDs have wallet balance > 0.
+     * Matches eatzy_backend: balance > 0 check in assignDriver business logic.
+     */
+    @PostMapping("/api/v1/payment/wallets/validate-balance")
+    List<Long> validateDriverWalletBalances(@RequestBody List<Long> userIds);
 
     class CalculateDiscountReq {
         private List<Long> voucherIds;

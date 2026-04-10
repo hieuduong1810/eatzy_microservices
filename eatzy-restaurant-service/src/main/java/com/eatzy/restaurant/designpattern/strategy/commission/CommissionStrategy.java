@@ -1,12 +1,14 @@
-package com.eatzy.restaurant.designpattern.strategy;
+package com.eatzy.restaurant.designpattern.strategy.commission;
 
 import java.math.BigDecimal;
 
 /**
  * ★ DESIGN PATTERN #4: Strategy Pattern
  * 
- * Interface cho phep doi thuat toan tinh hoa hong (Commission) lien hoat luc runtime.
- * Moi loai nha hang (Standard, Premium, Free-trial) se co 1 cach tinh hoa hong rieng.
+ * Interface cho phep doi thuat toan tinh hoa hong (Commission) lien hoat luc
+ * runtime.
+ * Moi loai nha hang (Standard, Premium, Free-trial) se co 1 cach tinh hoa hong
+ * rieng.
  */
 public interface CommissionStrategy {
     /**

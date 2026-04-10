@@ -46,6 +46,16 @@ public class UserController {
         return ResponseEntity.ok(this.userMapper.convertToResUserDTO(user));
     }
 
+    @GetMapping("/email/{email}")
+    @ApiMessage("Get user by email")
+    public ResponseEntity<ResUserDTO> getUserByEmail(@PathVariable("email") String email) throws IdInvalidException {
+        User user = this.userService.handleGetUserByUsername(email);
+        if (user == null) {
+            throw new IdInvalidException("User email không tồn tại");
+        }
+        return ResponseEntity.ok(this.userMapper.convertToResUserDTO(user));
+    }
+
     @PutMapping
     @ApiMessage("Update user")
     public ResponseEntity<ResUpdateUserDTO> updateUser(@Valid @RequestBody User user) throws IdInvalidException {
@@ -80,5 +90,15 @@ public class UserController {
         }
         User updatedUser = this.userService.setUserActiveStatus(id, isActive);
         return ResponseEntity.ok(this.userMapper.convertToResUserDTO(updatedUser));
+    }
+
+    @GetMapping("/role/{roleName}")
+    @ApiMessage("Get first user by role name")
+    public ResponseEntity<ResUserDTO> getUserByRoleName(@PathVariable("roleName") String roleName) throws IdInvalidException {
+        User user = this.userService.getUserByRoleName(roleName);
+        if (user == null) {
+            throw new IdInvalidException("User with role " + roleName + " không tồn tại");
+        }
+        return ResponseEntity.ok(this.userMapper.convertToResUserDTO(user));
     }
 }

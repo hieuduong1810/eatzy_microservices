@@ -30,6 +30,9 @@ dependencies {
     // Kafka
     implementation("org.springframework.kafka:spring-kafka")
 
+    // Redis (via eatzy-common RedisGeoService for driver location tracking)
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
+
     // Spring Filter (ho tro @Filter Specification tren Controller)
     implementation("com.turkraft.springfilter:jpa:3.1.7")
 
@@ -40,7 +43,7 @@ dependencies {
     developmentOnly("org.springframework.boot:spring-boot-devtools")
 
     // OpenAPI / Swagger
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6")
 
     // Test
     testImplementation("org.springframework.boot:spring-boot-starter-test")

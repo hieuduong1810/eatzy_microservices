@@ -93,11 +93,11 @@ public class OrderEarningsSummaryService {
 
         summary = earningsSummaryRepository.save(summary);
 
-        // Publish event for Payment Service to handle wallet distribution
+        // Publish event for Payment Service to handle wallet distribution and voucher quantity updates
         orderEventProducer.publishOrderDelivered(new OrderDeliveredEvent(
                 orderId, order.getCustomerId(), order.getDriverId(), order.getRestaurantId(),
                 subtotal, deliveryFee, discountAmount, order.getTotalAmount(),
-                driverNetEarning, restaurantNetEarning));
+                driverNetEarning, restaurantNetEarning, order.getVoucherIds()));
 
         log.info("✅ Created earnings summary for order {}: restaurant={}, driver={}, platform={}",
                 orderId, restaurantNetEarning, driverNetEarning, platformEarning);

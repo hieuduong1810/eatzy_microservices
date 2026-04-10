@@ -224,6 +224,21 @@ public class VoucherService {
         return result;
     }
 
+    @Transactional
+    public void decrementVoucherQuantity(List<Long> voucherIds) {
+        if (voucherIds == null || voucherIds.isEmpty()) return;
+
+        for (Long voucherId : voucherIds) {
+            Voucher voucher = voucherRepository.findById(voucherId).orElse(null);
+            if (voucher != null && voucher.getRemainingQuantity() != null && voucher.getRemainingQuantity() > 0) {
+                voucher.setRemainingQuantity(voucher.getRemainingQuantity() - 1);
+                voucherRepository.save(voucher);
+                // System log equivalent to eatzy_backend log
+                System.out.println("Áp dụng voucher " + voucher.getCode() + " - Số lượng còn lại: " + voucher.getRemainingQuantity());
+            }
+        }
+    }
+
     public void deleteVoucher(Long id) {
         voucherRepository.deleteById(id);
     }

@@ -30,6 +30,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/orders/delivery-fee").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/orders/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/earnings/**").permitAll()
+                        .requestMatchers("/v3/api-docs", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         // Secured endpoints
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2

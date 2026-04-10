@@ -20,7 +20,9 @@ repositories {
 
 dependencies {
     implementation("org.springframework.cloud:spring-cloud-starter-gateway")
-    implementation("org.springframework.cloud:spring-cloud-starter-netflix-eureka-client")
+    implementation("org.springframework.cloud:spring-cloud-starter-netflix-eureka-client") {
+        exclude(group = "org.springframework.boot", module = "spring-boot-starter-web")
+    }
     // Ép dự án sử dụng WebFlux và Netty
     implementation("org.springframework.boot:spring-boot-starter-webflux")
     implementation("org.springframework.boot:spring-boot-starter-security")
@@ -31,6 +33,14 @@ dependencies {
         exclude(group = "org.springframework.boot", module = "spring-boot-starter-security")
         exclude(group = "org.springframework.boot", module = "spring-boot-starter-oauth2-resource-server")
     }
+
+    // OpenAPI / Swagger for WebFlux
+    implementation("org.springdoc:springdoc-openapi-starter-webflux-ui:2.8.6")
+}
+
+configurations.all {
+    exclude(group = "org.springframework.boot", module = "spring-boot-starter-web")
+    exclude(group = "org.springframework.boot", module = "spring-boot-starter-tomcat")
 }
 
 
