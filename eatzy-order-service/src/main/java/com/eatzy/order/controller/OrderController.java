@@ -51,7 +51,7 @@ public class OrderController {
     }
 
     @GetMapping("/orders/{id}")
-    public ResponseEntity<ResOrderDTO> getOrderById(@PathVariable Long id) throws IdInvalidException {
+    public ResponseEntity<ResOrderDTO> getOrderById(@PathVariable("id") Long id) throws IdInvalidException {
         ResOrderDTO orderDTO = orderService.getOrderDTOById(id);
         if (orderDTO == null) {
             throw new IdInvalidException("Order not found with id: " + id);
@@ -80,28 +80,28 @@ public class OrderController {
 
     @GetMapping("/orders/restaurant/{restaurantId}")
     public ResponseEntity<ResultPaginationDTO> getOrdersByRestaurant(
-            @PathVariable Long restaurantId,
+            @PathVariable("restaurantId") Long restaurantId,
             @Filter Specification<Order> spec, Pageable pageable) {
         return ResponseEntity.ok(orderService.getOrdersDTOByRestaurantIdWithSpec(restaurantId, spec, pageable));
     }
 
     @GetMapping("/orders/customer/{customerId}")
     public ResponseEntity<ResultPaginationDTO> getOrdersByCustomer(
-            @PathVariable Long customerId,
+            @PathVariable("customerId") Long customerId,
             @Filter Specification<Order> spec, Pageable pageable) {
         return ResponseEntity.ok(orderService.getOrdersDTOByCustomerIdWithSpec(customerId, spec, pageable));
     }
 
     @GetMapping("/orders/driver/{driverId}")
     public ResponseEntity<ResultPaginationDTO> getOrdersByDriver(
-            @PathVariable Long driverId,
+            @PathVariable("driverId") Long driverId,
             @Filter Specification<Order> spec, Pageable pageable) {
         return ResponseEntity.ok(orderService.getOrdersDTOByDriverIdWithSpec(driverId, spec, pageable));
     }
 
     @GetMapping("/orders/restaurant/{restaurantId}/status/{status}")
     public ResponseEntity<List<ResOrderDTO>> getOrdersByRestaurantAndStatus(
-            @PathVariable Long restaurantId, @PathVariable String status) {
+            @PathVariable("restaurantId") Long restaurantId, @PathVariable("status") String status) {
         return ResponseEntity.ok(orderService.getOrdersDTOByRestaurantIdAndStatus(restaurantId, status));
     }
 
@@ -115,7 +115,7 @@ public class OrderController {
     @PatchMapping("/orders/{id}/reject")
     public ResponseEntity<ResOrderDTO> rejectOrderByRestaurant(
             @PathVariable("id") Long id,
-            @RequestParam(required = false, defaultValue = "Đơn hàng bị từ chối bởi nhà hàng") String reason)
+            @RequestParam(name = "reason", required = false, defaultValue = "Đơn hàng bị từ chối bởi nhà hàng") String reason)
             throws IdInvalidException {
         return ResponseEntity.ok(orderService.rejectOrderByRestaurant(id, reason));
     }
@@ -123,7 +123,7 @@ public class OrderController {
     @PatchMapping("/orders/{id}/cancel")
     public ResponseEntity<ResOrderDTO> cancelOrder(
             @PathVariable("id") Long id,
-            @RequestParam(required = false, defaultValue = "Đơn hàng bị hủy") String reason)
+            @RequestParam(name = "reason", required = false, defaultValue = "Đơn hàng bị hủy") String reason)
             throws IdInvalidException {
         return ResponseEntity.ok(orderService.cancelOrder(id, reason));
     }

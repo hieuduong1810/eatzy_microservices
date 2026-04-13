@@ -27,7 +27,7 @@ public class DriverLocationController {
     private final OrderServiceClient orderServiceClient;
 
     public DriverLocationController(RedisGeoService redisGeoService, WebSocketService webSocketService,
-                                    AuthServiceClient authServiceClient, OrderServiceClient orderServiceClient) {
+            AuthServiceClient authServiceClient, OrderServiceClient orderServiceClient) {
         this.redisGeoService = redisGeoService;
         this.webSocketService = webSocketService;
         this.authServiceClient = authServiceClient;
@@ -37,24 +37,33 @@ public class DriverLocationController {
     @MessageMapping("/driver/location")
     public void updateDriverLocation(@Payload DriverLocationUpdate locationUpdate, Principal principal) {
         String driverEmail = principal != null ? principal.getName() : null;
-        if (driverEmail == null) return;
+        if (driverEmail == null)
+            return;
 
-        // In a real app, we need to extract the Driver user object. 
-        // As a shortcut, if we assume the client includes orderId or driverId in a wrapper,
-        // we can fetch it. Or we fetch user by email logic which isn't available in AuthServiceClient atm.
-        // For simplicity in this demo, let's assume the client passes the active orderId in a wrapper or
+        // In a real app, we need to extract the Driver user object.
+        // As a shortcut, if we assume the client includes orderId or driverId in a
+        // wrapper,
+        // we can fetch it. Or we fetch user by email logic which isn't available in
+        // AuthServiceClient atm.
+        // For simplicity in this demo, let's assume the client passes the active
+        // orderId in a wrapper or
         // we broadcast the location to the customer directly if order is provided.
-        // Here we just accept the payload. To fully decouple, we would add "active order lookup" to OrderService.
+        // Here we just accept the payload. To fully decouple, we would add "active
+        // order lookup" to OrderService.
 
         locationUpdate.setTimestamp(Instant.now());
 
-        // This requires driverId... Since we only have email from Principal, 
-        // we might skip Redis GEO storage for a minute or add getUserByEmail to AuthAdapter.
-        // We'll stub driverId as 1L for compiling, in reality Auth API needs /users/email endpoint.
+        // This requires driverId... Since we only have email from Principal,
+        // we might skip Redis GEO storage for a minute or add getUserByEmail to
+        // AuthAdapter.
+        // We'll stub driverId as 1L for compiling, in reality Auth API needs
+        // /users/email endpoint.
         redisGeoService.updateDriverLocation(1L, locationUpdate.getLatitude(), locationUpdate.getLongitude());
 
         // Example: If we know customerEmail, send via Factory:
-        // DriverLocationNotification n = NotificationFactory.createDriverLocationNotification(customerEmail, lat, lon);
+        // DriverLocationNotification n =
+        // NotificationFactory.createDriverLocationNotification(customerEmail, lat,
+        // lon);
         // webSocketService.pushNotification(n);
     }
 }

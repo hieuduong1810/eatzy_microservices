@@ -33,6 +33,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/payment/calculate-discount").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/payment/wallets/validate-balance").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/payment/calculate-commissions").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/payment/refund").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/payment/cod/delivery").permitAll()
                         .requestMatchers("/v3/api-docs", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         // Secured endpoints
                         .anyRequest().authenticated())

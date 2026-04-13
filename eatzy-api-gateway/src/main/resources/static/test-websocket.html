@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eatzy WebSocket Test</title>
+    <!-- SockJS + STOMP.js -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        :root {
+            --primary: #6C5CE7;
+            --primary-light: #a29bfe;
+            --success: #00b894;
+            --danger: #d63031;
+            --warning: #fdcb6e;
+            --bg-dark: #0a0a0f;
+            --bg-card: #16161f;
+            --bg-input: #1e1e2e;
+            --text: #e2e2e8;
+            --text-dim: #8888a0;
+            --border: #2a2a3e;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 24px;
+            font-size: 1.8rem;
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 24px rgba(0,0,0,.3);
+        }
+
+        .card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 16px;
+            color: var(--primary-light);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--primary);
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: white;
+        }
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success), #55efc4);
+            color: #1a1a2e;
+        }
+        .btn-success:hover { opacity: 0.9; }
+        .btn-success:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger), #e17055);
+            color: white;
+        }
+        .btn-danger:hover { opacity: 0.9; }
+        .btn-danger:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-disconnected { background: rgba(214,48,49,.15); color: var(--danger); }
+        .status-disconnected .status-dot { background: var(--danger); }
+        .status-connected { background: rgba(0,184,148,.15); color: var(--success); }
+        .status-connected .status-dot { background: var(--success); }
+        .status-connecting { background: rgba(253,203,110,.15); color: var(--warning); }
+        .status-connecting .status-dot { background: var(--warning); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .log-container {
+            grid-column: 1 / -1;
+        }
+
+        #log {
+            background: #0d0d14;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.8rem;
+            line-height: 1.6;
+        }
+
+        .log-entry {
+            padding: 2px 0;
+            border-bottom: 1px solid rgba(42,42,62,.3);
+        }
+        .log-entry:last-child { border-bottom: none; }
+
+        .log-time { color: var(--text-dim); }
+        .log-info { color: #74b9ff; }
+        .log-success { color: var(--success); }
+        .log-error { color: var(--danger); }
+        .log-message { color: var(--warning); }
+        .log-send { color: var(--primary-light); }
+
+        .token-display {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 8px;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: var(--success);
+            max-height: 60px;
+            overflow-y: auto;
+        }
+
+        .subscription-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .subscription-list li {
+            padding: 8px 12px;
+            background: var(--bg-input);
+            border-radius: 8px;
+            margin-bottom: 6px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .subscription-list li .sub-status {
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+
+        .sub-active { background: rgba(0,184,148,.15); color: var(--success); }
+        .sub-inactive { background: rgba(136,136,160,.15); color: var(--text-dim); }
+
+        .info-box {
+            background: rgba(108,92,231,.1);
+            border: 1px solid rgba(108,92,231,.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+            font-size: 0.8rem;
+            color: var(--primary-light);
+            line-height: 1.5;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 0.85rem;
+            font-family: 'JetBrains Mono', monospace;
+            resize: vertical;
+            min-height: 80px;
+            outline: none;
+        }
+        textarea:focus { border-color: var(--primary); }
+    </style>
+</head>
+<body>
+    <h1>🔌 Eatzy WebSocket Test Console</h1>
+
+    <div class="container">
+        <!-- Step 1: Login -->
+        <div class="card">
+            <h2>🔐 Step 1: Đăng Nhập</h2>
+            <div class="info-box">
+                Đăng nhập để lấy JWT Access Token. Token này sẽ được dùng để xác thực khi kết nối WebSocket.
+            </div>
+            <div class="form-group">
+                <label>Gateway URL</label>
+                <input type="text" id="gatewayUrl" value="http://localhost:8080" />
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="text" id="email" value="customer@gmail.com" />
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="password" value="123456" />
+            </div>
+            <div class="btn-group">
+                <button id="btnLogin" class="btn-primary" onclick="login()">🔑 Đăng Nhập</button>
+            </div>
+            <div id="tokenDisplay" class="token-display" style="display:none;"></div>
+        </div>
+
+        <!-- Step 2: Connect WebSocket -->
+        <div class="card">
+            <h2>📡 Step 2: Kết Nối WebSocket</h2>
+            <div class="info-box">
+                Kết nối trực tiếp tới Communication Service. Token sẽ được gửi trong STOMP CONNECT header.
+            </div>
+            <div class="form-group">
+                <label>WebSocket URL (Communication Service)</label>
+                <input type="text" id="wsUrl" value="http://localhost:8084/ws" />
+            </div>
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                <span id="wsStatus" class="status status-disconnected">
+                    <span class="status-dot"></span> Disconnected
+                </span>
+            </div>
+            <div class="btn-group">
+                <button id="btnConnect" class="btn-success" onclick="connectWS()" disabled>🔌 Kết Nối</button>
+                <button id="btnDisconnect" class="btn-danger" onclick="disconnectWS()" disabled>⛔ Ngắt Kết Nối</button>
+            </div>
+
+            <h2 style="margin-top:20px;">📋 Subscriptions</h2>
+            <ul class="subscription-list" id="subList">
+                <li>/user/queue/orders <span class="sub-status sub-inactive">inactive</span></li>
+                <li>/user/queue/system <span class="sub-status sub-inactive">inactive</span></li>
+                <li>/user/queue/driver-location <span class="sub-status sub-inactive">inactive</span></li>
+            </ul>
+        </div>
+
+        <!-- Step 3: Send Messages -->
+        <div class="card">
+            <h2>💬 Step 3: Gửi Tin Nhắn (Chat)</h2>
+            <div class="form-group">
+                <label>Order ID</label>
+                <input type="number" id="chatOrderId" value="1" />
+            </div>
+            <div class="form-group">
+                <label>Message</label>
+                <input type="text" id="chatMessage" value="Xin chào!" />
+            </div>
+            <div class="form-group">
+                <label>Sender Type</label>
+                <select id="chatSenderType">
+                    <option value="CUSTOMER">CUSTOMER</option>
+                    <option value="DRIVER">DRIVER</option>
+                </select>
+            </div>
+            <div class="btn-group">
+                <button class="btn-primary" onclick="sendChat()" id="btnSendChat" disabled>📤 Gửi Chat</button>
+            </div>
+
+            <h2 style="margin-top:20px;">🗺️ Gửi Driver Location</h2>
+            <div class="form-group">
+                <label>Latitude</label>
+                <input type="text" id="driverLat" value="10.8231" />
+            </div>
+            <div class="form-group">
+                <label>Longitude</label>
+                <input type="text" id="driverLng" value="106.6297" />
+            </div>
+            <div class="btn-group">
+                <button class="btn-primary" onclick="sendDriverLocation()" id="btnSendLocation" disabled>📍 Gửi Location</button>
+            </div>
+        </div>
+
+        <!-- Subscribe to chat for specific order -->
+        <div class="card">
+            <h2>🔔 Subscribe Thêm Kênh</h2>
+            <div class="form-group">
+                <label>Subscribe Chat cho Order ID</label>
+                <input type="number" id="subChatOrderId" value="1" />
+            </div>
+            <div class="btn-group">
+                <button class="btn-success" onclick="subscribeChatOrder()" id="btnSubChat" disabled>➕ Subscribe Chat</button>
+            </div>
+
+            <h2 style="margin-top:20px;">📝 Custom STOMP Send</h2>
+            <div class="form-group">
+                <label>Destination</label>
+                <input type="text" id="customDest" value="/app/chat/1" />
+            </div>
+            <div class="form-group">
+                <label>JSON Body</label>
+                <textarea id="customBody">{"message":"Hello","senderType":"CUSTOMER"}</textarea>
+            </div>
+            <div class="btn-group">
+                <button class="btn-primary" onclick="sendCustom()" id="btnSendCustom" disabled>🚀 Send</button>
+            </div>
+        </div>
+
+        <!-- Log -->
+        <div class="card log-container">
+            <h2>📜 Realtime Log
+                <button class="btn-danger" style="margin-left:auto; font-size:0.75rem; padding:4px 12px;" onclick="clearLog()">🗑️ Clear</button>
+            </h2>
+            <div id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        let stompClient = null;
+        let accessToken = null;
+        let subscriptions = {};
+
+        // ============ LOGGING ============
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString('vi-VN', { hour12: false });
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-${type}">${message}</span>`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        // ============ STEP 1: LOGIN ============
+        async function login() {
+            const gatewayUrl = document.getElementById('gatewayUrl').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            log(`🔑 Đang đăng nhập với email: ${email}...`, 'info');
+            document.getElementById('btnLogin').disabled = true;
+
+            try {
+                const response = await fetch(`${gatewayUrl}/api/v1/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: email, password: password })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+
+                const data = await response.json();
+                
+                // Extract token - support both CamelCase and snake_case just in case
+                if (data.accessToken) {
+                    accessToken = data.accessToken;
+                } else if (data.access_token) {
+                    accessToken = data.access_token;
+                } else if (data.data && data.data.accessToken) {
+                    accessToken = data.data.accessToken;
+                } else if (data.data && data.data.access_token) {
+                    accessToken = data.data.access_token;
+                } else {
+                    log(`❌ Không tìm thấy token trong response: ${JSON.stringify(data)}`, 'error');
+                    throw new Error('Token not found');
+                }
+
+                log(`✅ Đăng nhập thành công!`, 'success');
+                log(`📋 Token: ${accessToken.substring(0, 50)}...`, 'info');
+
+                // Show token
+                const tokenDiv = document.getElementById('tokenDisplay');
+                tokenDiv.style.display = 'block';
+                tokenDiv.textContent = accessToken;
+
+                // Enable connect button
+                document.getElementById('btnConnect').disabled = false;
+
+            } catch (error) {
+                log(`❌ Đăng nhập thất bại: ${error.message}`, 'error');
+            }
+
+            document.getElementById('btnLogin').disabled = false;
+        }
+
+        // ============ STEP 2: CONNECT WEBSOCKET ============
+        function connectWS() {
+            if (!accessToken) {
+                log('❌ Chưa đăng nhập! Hãy login trước.', 'error');
+                return;
+            }
+
+            const wsUrl = document.getElementById('wsUrl').value;
+            log(`🔌 Đang kết nối tới ${wsUrl}...`, 'info');
+            updateStatus('connecting');
+
+            // Create SockJS connection
+            const socket = new SockJS(wsUrl);
+            stompClient = Stomp.over(socket);
+
+            // Optional: reduce STOMP debug noise
+            stompClient.debug = function(msg) {
+                if (msg.includes('CONNECTED') || msg.includes('ERROR') || msg.includes('DISCONNECT')) {
+                    log(`🔧 STOMP: ${msg}`, 'info');
+                }
+            };
+
+            // STOMP CONNECT with JWT token in headers
+            const headers = {
+                'Authorization': 'Bearer ' + accessToken
+            };
+
+            stompClient.connect(headers, 
+                // onConnect callback
+                function(frame) {
+                    log(`✅ STOMP CONNECTED! Server: ${frame}`, 'success');
+                    updateStatus('connected');
+                    enableButtons(true);
+
+                    // Auto-subscribe to default channels
+                    subscribeToChannel('/user/queue/orders', 'Order Updates');
+                    subscribeToChannel('/user/queue/system', 'System Notifications');
+                    subscribeToChannel('/user/queue/driver-location', 'Driver Location');
+                },
+                // onError callback
+                function(error) {
+                    log(`❌ STOMP ERROR: ${error}`, 'error');
+                    updateStatus('disconnected');
+                    enableButtons(false);
+                    stompClient = null;
+                }
+            );
+        }
+
+        function disconnectWS() {
+            if (stompClient) {
+                stompClient.disconnect(function() {
+                    log('⛔ Đã ngắt kết nối WebSocket', 'error');
+                    updateStatus('disconnected');
+                    enableButtons(false);
+                    subscriptions = {};
+                    updateSubList();
+                });
+                stompClient = null;
+            }
+        }
+
+        // ============ SUBSCRIPTIONS ============
+        function subscribeToChannel(destination, label) {
+            if (subscriptions[destination]) {
+                log(`⚠️ Đã subscribe ${destination} rồi`, 'info');
+                return;
+            }
+
+            const sub = stompClient.subscribe(destination, function(message) {
+                const body = JSON.parse(message.body);
+                log(`📨 [${label}] ${destination}: ${JSON.stringify(body, null, 2)}`, 'message');
+            });
+
+            subscriptions[destination] = sub;
+            log(`📋 Subscribed to ${destination}`, 'success');
+            updateSubList();
+        }
+
+        function subscribeChatOrder() {
+            const orderId = document.getElementById('subChatOrderId').value;
+            const dest = `/user/queue/chat/order/${orderId}`;
+            subscribeToChannel(dest, `Chat Order #${orderId}`);
+
+            // Also subscribe to typing indicator
+            const typingDest = `/user/queue/chat/order/${orderId}/typing`;
+            subscribeToChannel(typingDest, `Typing Order #${orderId}`);
+        }
+
+        // ============ SEND MESSAGES ============
+        function sendChat() {
+            if (!stompClient || !stompClient.connected) {
+                log('❌ Chưa kết nối WebSocket!', 'error');
+                return;
+            }
+
+            const orderId = document.getElementById('chatOrderId').value;
+            const message = document.getElementById('chatMessage').value;
+            const senderType = document.getElementById('chatSenderType').value;
+
+            const payload = {
+                message: message,
+                senderType: senderType,
+                messageType: 'TEXT'
+            };
+
+            stompClient.send(`/app/chat/${orderId}`, {}, JSON.stringify(payload));
+            log(`📤 Sent chat to /app/chat/${orderId}: ${JSON.stringify(payload)}`, 'send');
+        }
+
+        function sendDriverLocation() {
+            if (!stompClient || !stompClient.connected) {
+                log('❌ Chưa kết nối WebSocket!', 'error');
+                return;
+            }
+
+            const lat = document.getElementById('driverLat').value;
+            const lng = document.getElementById('driverLng').value;
+
+            const payload = {
+                latitude: parseFloat(lat),
+                longitude: parseFloat(lng)
+            };
+
+            stompClient.send('/app/driver/location', {}, JSON.stringify(payload));
+            log(`📍 Sent driver location: ${JSON.stringify(payload)}`, 'send');
+        }
+
+        function sendCustom() {
+            if (!stompClient || !stompClient.connected) {
+                log('❌ Chưa kết nối WebSocket!', 'error');
+                return;
+            }
+
+            const dest = document.getElementById('customDest').value;
+            const body = document.getElementById('customBody').value;
+
+            stompClient.send(dest, {}, body);
+            log(`🚀 Custom send to ${dest}: ${body}`, 'send');
+        }
+
+        // ============ UI HELPERS ============
+        function updateStatus(status) {
+            const el = document.getElementById('wsStatus');
+            el.className = `status status-${status}`;
+            const labels = { connected: 'Connected', disconnected: 'Disconnected', connecting: 'Connecting...' };
+            el.innerHTML = `<span class="status-dot"></span> ${labels[status]}`;
+        }
+
+        function enableButtons(connected) {
+            document.getElementById('btnConnect').disabled = connected;
+            document.getElementById('btnDisconnect').disabled = !connected;
+            document.getElementById('btnSendChat').disabled = !connected;
+            document.getElementById('btnSendLocation').disabled = !connected;
+            document.getElementById('btnSubChat').disabled = !connected;
+            document.getElementById('btnSendCustom').disabled = !connected;
+        }
+
+        function updateSubList() {
+            const list = document.getElementById('subList');
+            const defaults = ['/user/queue/orders', '/user/queue/system', '/user/queue/driver-location'];
+            const allDests = [...new Set([...defaults, ...Object.keys(subscriptions)])];
+
+            list.innerHTML = allDests.map(dest => {
+                const isActive = !!subscriptions[dest];
+                return `<li>${dest} <span class="sub-status ${isActive ? 'sub-active' : 'sub-inactive'}">${isActive ? 'active' : 'inactive'}</span></li>`;
+            }).join('');
+        }
+
+        // Initial log
+        log('🚀 Eatzy WebSocket Test Console ready', 'info');
+        log('📌 Flow: Login → Connect WebSocket → Subscribe → Nhận/Gửi messages', 'info');
+    </script>
+</body>
+</html>

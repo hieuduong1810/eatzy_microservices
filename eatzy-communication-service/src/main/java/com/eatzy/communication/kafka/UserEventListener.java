@@ -25,8 +25,24 @@ public class UserEventListener {
     }
 
     @KafkaListener(topics = "user-events", groupId = "communication-group")
-    public void handleUserEvents(Map<String, Object> record) {
-        log.info("📥 Received event on user-events topic: {}", record);
+    public void handleUserEvents(@org.springframework.messaging.handler.annotation.Payload Object event) {
+        if (event instanceof org.apache.kafka.clients.consumer.ConsumerRecord) {
+            event = ((org.apache.kafka.clients.consumer.ConsumerRecord<?, ?>) event).value();
+        }
+        
+        log.info("📥 Received event on user-events topic: {}", event);
+        
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        mapper.configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        mapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+        
+        Map<String, Object> record;
+        try {
+            record = mapper.convertValue(event, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+        } catch (IllegalArgumentException e) {
+            log.error("Failed to convert event to Map: {}", e.getMessage());
+            return;
+        }
         
         try {
             if (record.containsKey("isActive") && Boolean.FALSE.equals(record.get("isActive"))) {

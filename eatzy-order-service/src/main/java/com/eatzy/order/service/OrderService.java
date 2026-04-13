@@ -204,7 +204,8 @@ public class OrderService {
     // ====================
 
     @Transactional(rollbackFor = Exception.class)
-    public ResOrderDTO createOrderFromReqDTO(ReqOrderDTO reqOrderDTO, String clientIp, String baseUrl) throws IdInvalidException {
+    public ResOrderDTO createOrderFromReqDTO(ReqOrderDTO reqOrderDTO, String clientIp, String baseUrl)
+            throws IdInvalidException {
         // 1. Validate customer via REST (Adapter Pattern)
         if (reqOrderDTO.getCustomer() == null || reqOrderDTO.getCustomer().getId() == null) {
             throw new IdInvalidException("Customer is required");
@@ -396,8 +397,7 @@ public class OrderService {
                     savedOrder.getPaymentMethod(),
                     clientIp,
                     baseUrl,
-                    savedOrder.getDriverId()
-            );
+                    savedOrder.getDriverId());
 
             Map<String, Object> paymentResult = paymentServiceClient.initiatePayment(paymentReq);
 
@@ -413,10 +413,13 @@ public class OrderService {
                         orderDTO.setPaymentStatus(newStatus);
                     }
                 }
-                
-                // If payment was WALLET and it failed (success = false), throw exception to rollback
+
+                // If payment was WALLET and it failed (success = false), throw exception to
+                // rollback
                 if (paymentResult.containsKey("success") && !(Boolean) paymentResult.get("success")) {
-                    throw new IdInvalidException(paymentResult.get("message") != null ? (String) paymentResult.get("message") : "Wallet payment failed");
+                    throw new IdInvalidException(
+                            paymentResult.get("message") != null ? (String) paymentResult.get("message")
+                                    : "Wallet payment failed");
                 }
             }
         } catch (IdInvalidException e) {
@@ -434,8 +437,10 @@ public class OrderService {
     // ====================
 
     /**
-     * Restaurant accepts order → status becomes PREPARING → automatically assign driver.
-     * Matches eatzy_backend: acceptOrderByRestaurant calls assignDriver after accepting.
+     * Restaurant accepts order → status becomes PREPARING → automatically assign
+     * driver.
+     * Matches eatzy_backend: acceptOrderByRestaurant calls assignDriver after
+     * accepting.
      */
     @Transactional
     public ResOrderDTO acceptOrderByRestaurant(Long orderId) throws IdInvalidException {
@@ -452,7 +457,8 @@ public class OrderService {
 
         publishStatusChanged(order, previousStatus, "Đơn hàng đã được chấp nhận và đang được chuẩn bị");
 
-        // Automatically assign driver after restaurant accepts (matches eatzy_backend logic)
+        // Automatically assign driver after restaurant accepts (matches eatzy_backend
+        // logic)
         try {
             assignDriver(orderId);
         } catch (Exception e) {
@@ -464,7 +470,8 @@ public class OrderService {
     }
 
     /**
-     * Assign the closest available driver to an order using Redis GEO + SQL validation + Mapbox.
+     * Assign the closest available driver to an order using Redis GEO + SQL
+     * validation + Mapbox.
      * Matches eatzy_backend 3-step logic:
      * 1. Find nearby drivers via Redis GEO (fast spatial search)
      * 2. Query SQL to validate business rules (COD limit, status)
@@ -551,7 +558,8 @@ public class OrderService {
             BigDecimal driverLat = getBigDecimalValue(driverData, "latitude");
             BigDecimal driverLng = getBigDecimalValue(driverData, "longitude");
 
-            if (driverId == null || driverLat == null || driverLng == null) continue;
+            if (driverId == null || driverLat == null || driverLng == null)
+                continue;
 
             BigDecimal drivingDistance = mapboxService.getDrivingDistance(
                     driverLat, driverLng, restLat, restLng);
@@ -591,7 +599,8 @@ public class OrderService {
 
     /**
      * Restaurant rejects order.
-     * Matches eatzy_backend: includes refund logic for already-paid orders (WALLET/VNPAY).
+     * Matches eatzy_backend: includes refund logic for already-paid orders
+     * (WALLET/VNPAY).
      */
     @Transactional
     public ResOrderDTO rejectOrderByRestaurant(Long orderId, String cancellationReason) throws IdInvalidException {
@@ -605,7 +614,8 @@ public class OrderService {
         order.setOrderStatus(OrderStatus.REJECTED.name());
         order.setCancellationReason(cancellationReason);
 
-        // If payment was already made (WALLET or VNPAY), process refund (matches eatzy_backend)
+        // If payment was already made (WALLET or VNPAY), process refund (matches
+        // eatzy_backend)
         processRefundIfNeeded(order);
 
         order = orderRepository.save(order);
@@ -616,7 +626,8 @@ public class OrderService {
 
     /**
      * Customer cancels order.
-     * Matches eatzy_backend: includes refund logic for already-paid orders (WALLET/VNPAY).
+     * Matches eatzy_backend: includes refund logic for already-paid orders
+     * (WALLET/VNPAY).
      */
     @Transactional
     public ResOrderDTO cancelOrder(Long orderId, String cancellationReason) throws IdInvalidException {
@@ -630,11 +641,10 @@ public class OrderService {
         order.setOrderStatus(OrderStatus.REJECTED.name());
         order.setCancellationReason(cancellationReason);
 
-        // If payment was already made (WALLET or VNPAY), process refund (matches eatzy_backend)
+        // If payment was already made (WALLET or VNPAY), process refund
         processRefundIfNeeded(order);
 
         order = orderRepository.save(order);
-
         publishStatusChanged(order, previousStatus, "Đơn hàng đã bị hủy");
         return orderMapper.toResOrderDTO(order);
     }
@@ -656,7 +666,8 @@ public class OrderService {
     }
 
     /**
-     * Driver accepts order (internal method used by both manual accept and auto-accept).
+     * Driver accepts order (internal method used by both manual accept and
+     * auto-accept).
      * Matches eatzy_backend: internalAcceptOrderByDriver
      * - If COD payment: call processCODPaymentOnDelivery
      * - Set status to DRIVER_ASSIGNED
@@ -750,7 +761,8 @@ public class OrderService {
         // Search radius
         BigDecimal radiusKm = getSystemConfigValue("DRIVER_SEARCH_RADIUS_KM", new BigDecimal("10.0"));
 
-        log.info("🔍 Searching for alternative drivers via Redis GEO (excluding {} rejected drivers)", rejectedDriverIds.size());
+        log.info("🔍 Searching for alternative drivers via Redis GEO (excluding {} rejected drivers)",
+                rejectedDriverIds.size());
 
         // STEP 1: Find nearby drivers via Redis GEO
         GeoResults<GeoLocation<Object>> geoResults = redisGeoService.findNearbyDrivers(
@@ -830,7 +842,8 @@ public class OrderService {
             BigDecimal driverLat = getBigDecimalValue(driverData, "latitude");
             BigDecimal driverLng = getBigDecimalValue(driverData, "longitude");
 
-            if (candidateId == null || driverLat == null || driverLng == null) continue;
+            if (candidateId == null || driverLat == null || driverLng == null)
+                continue;
 
             BigDecimal drivingDistance = mapboxService.getDrivingDistance(
                     driverLat, driverLng, restLat, restLng);
@@ -939,7 +952,8 @@ public class OrderService {
 
         publishStatusChanged(order, previousStatus, "Đơn hàng đã được giao thành công!");
 
-        // Update driver's completed trips count and set status to AVAILABLE (matches eatzy_backend)
+        // Update driver's completed trips count and set status to AVAILABLE (matches
+        // eatzy_backend)
         try {
             authServiceClient.incrementCompletedTrips(driverId);
             log.info("🏁 Incremented completed trips for driver {}", driverId);
@@ -1013,7 +1027,8 @@ public class OrderService {
 
     /**
      * Process refund if order was already paid via WALLET or VNPAY.
-     * Matches eatzy_backend refund logic in cancelOrder and rejectOrderByRestaurant.
+     * Matches eatzy_backend refund logic in cancelOrder and
+     * rejectOrderByRestaurant.
      */
     private void processRefundIfNeeded(Order order) {
         if ("PAID".equals(order.getPaymentStatus()) &&
@@ -1076,7 +1091,8 @@ public class OrderService {
 
     /**
      * Convert Redis GeoResults to a list of driver data maps.
-     * Each map contains: userId (Long), latitude (BigDecimal), longitude (BigDecimal), distance (Double in km).
+     * Each map contains: userId (Long), latitude (BigDecimal), longitude
+     * (BigDecimal), distance (Double in km).
      */
     private List<Map<String, Object>> convertGeoResultsToDriverList(GeoResults<GeoLocation<Object>> geoResults) {
         List<Map<String, Object>> drivers = new ArrayList<>();
@@ -1115,7 +1131,7 @@ public class OrderService {
                 return new BigDecimal(configData.get("configValue").toString());
             }
         } catch (Exception e) {
-            log.warn("Failed to fetch system config for key: {}. Using default: {}. Reason: {}", 
+            log.warn("Failed to fetch system config for key: {}. Using default: {}. Reason: {}",
                     key, defaultValue, e.getMessage());
         }
         return defaultValue;

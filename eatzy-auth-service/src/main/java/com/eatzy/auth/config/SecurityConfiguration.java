@@ -43,16 +43,18 @@ public class SecurityConfiguration {
                 "/api/v1/email/**",
                 "/api/v1/driver-profiles/user/**",
                 "/api/v1/users/role/**",
+                "/api/v1/users/email/**",
                 "/v3/api-docs",
                 "/v3/api-docs/**",
                 "/swagger-ui/**",
                 "/swagger-ui.html" };
         http
                 .csrf(csrf -> csrf.disable())
-                .cors(Customizer.withDefaults())
+                .cors(cors -> cors.disable())
                 .authorizeHttpRequests(
                         authz -> authz
                                 .requestMatchers(whiteList).permitAll()
+                                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/users/*").permitAll()
                                 .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults())
                         .authenticationEntryPoint(customAuthenticationEntryPoint))

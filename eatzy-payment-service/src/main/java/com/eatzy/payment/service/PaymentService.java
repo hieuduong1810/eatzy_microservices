@@ -49,14 +49,11 @@ public class PaymentService {
     private Long getAdminId() {
         try {
             Map<String, Object> response = authServiceClient.getUserByEmail("admin@gmail.com");
-            if (response != null && response.containsKey("data")) {
-                Map<String, Object> data = (Map<String, Object>) response.get("data");
-                if (data != null && data.containsKey("id")) {
-                    return ((Number) data.get("id")).longValue();
-                }
+            if (response != null && response.containsKey("id")) {
+                return ((Number) response.get("id")).longValue();
             }
         } catch (Exception e) {
-            // log error
+            System.err.println("Error fetching getAdminId from auth service: " + e.getMessage());
         }
         return null;
     }
@@ -173,7 +170,8 @@ public class PaymentService {
         Map<String, BigDecimal> commissions = new HashMap<>();
 
         BigDecimal driverCommissionPercent = getSystemConfigValue("DRIVER_COMMISSION_PERCENT", new BigDecimal("15"));
-        BigDecimal restaurantCommissionPercent = getSystemConfigValue("RESTAURANT_COMMISSION_PERCENT", new BigDecimal("20"));
+        BigDecimal restaurantCommissionPercent = getSystemConfigValue("RESTAURANT_COMMISSION_PERCENT",
+                new BigDecimal("20"));
 
         BigDecimal driverCommission = BigDecimal.ZERO;
         if (deliveryFee != null) {

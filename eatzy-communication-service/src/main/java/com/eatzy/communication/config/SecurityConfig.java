@@ -15,9 +15,15 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import com.nimbusds.jose.util.Base64;
+
+import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableMethodSecurity(securedEnabled = true)
@@ -34,21 +40,21 @@ public class SecurityConfig {
                 .csrf(c -> c.disable())
                 .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(authz -> authz
-                        // Permit WebSocket raw connections (token validated in Interceptor)
+                        // Permit WebSocket endpoint - authentication is handled at STOMP level
+                        // by WebSocketAuthChannelInterceptor, not at HTTP level
                         .requestMatchers("/ws/**").permitAll()
-                        .requestMatchers("/v3/api-docs", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        .requestMatchers("/v3/api-docs", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
+                        .permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt
                                 .decoder(jwtDecoder())
-                                .jwtAuthenticationConverter(jwtAuthenticationConverter())
-                        ))
+                                .jwtAuthenticationConverter(jwtAuthenticationConverter())))
                 // Stateless sessions
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
         return http.build();
     }
-
 
     @Value("${foodDelivery.jwt.base64-secret}")
     private String jwtKey;
@@ -76,6 +82,23 @@ public class SecurityConfig {
                 throw e;
             }
         };
+    }
+
+    /**
+     * CORS configuration - allows WebSocket connections from any origin.
+     * Required for direct client connections to Communication Service.
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOriginPatterns(List.of("*"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 
     private SecretKey getSecretKey() {
