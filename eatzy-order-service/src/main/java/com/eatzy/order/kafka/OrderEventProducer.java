@@ -48,4 +48,9 @@ public class OrderEventProducer {
         log.info("📤 Publishing Interaction Event for Scoring: {}", event);
         kafkaTemplate.send("order_events_topic", event);
     }
+
+    public void publishDriverOnlineEvent(com.eatzy.common.event.DriverOnlineEvent event) {
+        log.info("📤 Publishing DriverOnlineEvent from order-service: {}", event);
+        kafkaTemplate.send("driver-events", event);
+    }
 }

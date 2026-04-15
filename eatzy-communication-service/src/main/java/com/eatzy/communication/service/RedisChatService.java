@@ -65,7 +65,7 @@ public class RedisChatService {
             if (rawMessages == null || rawMessages.isEmpty()) return new ArrayList<>();
 
             List<ChatMessageDTO> messages = new ArrayList<>();
-            for (int i = rawMessages.size() - 1; i >= 0; i--) {
+            for (int i = 0; i < rawMessages.size(); i++) {
                 try {
                     ChatMessageDTO msg = objectMapper.readValue(rawMessages.get(i).toString(), ChatMessageDTO.class);
                     messages.add(msg);
@@ -94,6 +94,15 @@ public class RedisChatService {
             return Boolean.TRUE.equals(redisTemplate.hasKey(buildKey(orderId)));
         } catch (Exception e) {
             return false;
+        }
+    }
+
+    public void deleteChatHistory(Long orderId) {
+        try {
+            redisTemplate.delete(buildKey(orderId));
+            log.info("🗑️ Deleted chat history from Redis for order {}", orderId);
+        } catch (Exception e) {
+            log.error("Failed to delete chat history for order {}", orderId, e);
         }
     }
 

@@ -26,11 +26,13 @@ public class OrderEventListener {
     private final WebSocketService webSocketService;
     private final AuthServiceClient authServiceClient;
     private final com.eatzy.communication.designpattern.adapter.RestaurantServiceClient restaurantServiceClient;
+    private final com.eatzy.communication.service.RedisChatService redisChatService;
 
-    public OrderEventListener(WebSocketService webSocketService, AuthServiceClient authServiceClient, com.eatzy.communication.designpattern.adapter.RestaurantServiceClient restaurantServiceClient) {
+    public OrderEventListener(WebSocketService webSocketService, AuthServiceClient authServiceClient, com.eatzy.communication.designpattern.adapter.RestaurantServiceClient restaurantServiceClient, com.eatzy.communication.service.RedisChatService redisChatService) {
         this.webSocketService = webSocketService;
         this.authServiceClient = authServiceClient;
         this.restaurantServiceClient = restaurantServiceClient;
+        this.redisChatService = redisChatService;
     }
 
     @KafkaListener(topics = "order-events", groupId = "communication-group", containerFactory = "kafkaListenerContainerFactory")
@@ -106,6 +108,11 @@ public class OrderEventListener {
                 OrderNotification notification = NotificationFactory.createOrderNotification(
                         driverEmail, orderId, status, message, record);
                 webSocketService.pushNotification(notification);
+            }
+
+            // Clean up chat history upon delivery
+            if ("DELIVERED".equalsIgnoreCase(status)) {
+                redisChatService.deleteChatHistory(orderId);
             }
 
         } catch (Exception e) {

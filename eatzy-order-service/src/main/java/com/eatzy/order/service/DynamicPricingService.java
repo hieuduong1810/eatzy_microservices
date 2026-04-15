@@ -35,7 +35,7 @@ public class DynamicPricingService {
     private static final BigDecimal MAX_SUPPLY_MULTIPLIER = new BigDecimal("2.0");
 
     // Order statuses that need drivers
-    private static final List<String> PENDING_ORDER_STATUSES = Arrays.asList("CONFIRMED", "PREPARING", "READY");
+    private static final List<String> PENDING_ORDER_STATUSES = Arrays.asList("PENDING", "PREPARING");
 
     private final WeatherService weatherService;
     private final OrderRepository orderRepository;
@@ -92,7 +92,7 @@ public class DynamicPricingService {
         try {
             return weatherService.getWeatherMultiplier(latitude, longitude);
         } catch (Exception e) {
-            log.warn("Failed to get weather multiplier, using default 1.0: {}", e.getMessage());
+            log.info("Failed to get weather multiplier, using default 1.0: {}", e.getMessage());
             return BigDecimal.ONE;
         }
     }
@@ -111,7 +111,7 @@ public class DynamicPricingService {
         boolean isPeakHour = (hour >= 11 && hour < 13) || (hour >= 18 && hour < 20);
 
         if (isPeakHour) {
-            log.debug("Current time {} is peak hour, applying multiplier {}", now, PEAK_HOUR_MULTIPLIER);
+            log.info("Current time {} is peak hour, applying multiplier {}", now, PEAK_HOUR_MULTIPLIER);
             return PEAK_HOUR_MULTIPLIER;
         }
 
@@ -137,15 +137,16 @@ public class DynamicPricingService {
             // Count ALL available drivers from auth-service
             long availableDrivers = authServiceClient.countDriversByStatus("AVAILABLE");
 
-            // Count ALL pending orders globally (CONFIRMED, PREPARING, READY without driver)
+            // Count ALL pending orders globally (CONFIRMED, PREPARING, READY without
+            // driver)
             long pendingOrders = orderRepository.countByOrderStatusInAndDriverIdIsNull(PENDING_ORDER_STATUSES);
 
-            log.debug("📊 Supply/Demand - Global: {} pending orders, {} available drivers",
+            log.info("📊 Supply/Demand - Global: {} pending orders, {} available drivers",
                     pendingOrders, availableDrivers);
 
             // If no drivers available, return max multiplier
             if (availableDrivers == 0) {
-                log.warn("No active drivers in system, applying max supply/demand multiplier");
+                log.info("No active drivers in system, applying max supply/demand multiplier");
                 return MAX_SUPPLY_MULTIPLIER;
             }
 
@@ -159,7 +160,7 @@ public class DynamicPricingService {
 
             // ratio <= 1: enough drivers for all orders → multiplier = 1.0
             if (ratio <= 1.0) {
-                log.debug("Balanced supply/demand (ratio: {:.2f}), multiplier: 1.0", ratio);
+                log.info("Balanced supply/demand (ratio: {:.2f}), multiplier: 1.0", ratio);
                 return MIN_SUPPLY_MULTIPLIER;
             }
 
@@ -177,7 +178,7 @@ public class DynamicPricingService {
             return result;
 
         } catch (Exception e) {
-            log.warn("Failed to calculate supply/demand multiplier, using default 1.0: {}", e.getMessage());
+            log.info("Failed to calculate supply/demand multiplier, using default 1.0: {}", e.getMessage());
             return MIN_SUPPLY_MULTIPLIER;
         }
     }

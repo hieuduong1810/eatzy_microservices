@@ -170,10 +170,10 @@ public class OrderService {
         }
 
         // Fetch configs
-        BigDecimal baseFee = getSystemConfigValue("DELIVERY_BASE_FEE", new BigDecimal("15000"));
-        BigDecimal baseDistance = getSystemConfigValue("DELIVERY_BASE_DISTANCE", new BigDecimal("3"));
-        BigDecimal perKmFee = getSystemConfigValue("DELIVERY_PER_KM_FEE", new BigDecimal("5000"));
-        BigDecimal minFee = getSystemConfigValue("DELIVERY_MIN_FEE", new BigDecimal("10000"));
+        BigDecimal baseFee = getSystemConfigValue("DELIVERY_BASE_FEE");
+        BigDecimal baseDistance = getSystemConfigValue("DELIVERY_BASE_DISTANCE");
+        BigDecimal perKmFee = getSystemConfigValue("DELIVERY_PER_KM_FEE");
+        BigDecimal minFee = getSystemConfigValue("DELIVERY_MIN_FEE");
 
         // Get distance via Mapbox
         BigDecimal distance = mapboxService.getDrivingDistance(restLat, restLng, deliveryLatitude, deliveryLongitude);
@@ -257,10 +257,10 @@ public class OrderService {
         }
 
         // 4. Calculate delivery fee using real driving distance & dynamic pricing
-        BigDecimal baseFee = getSystemConfigValue("DELIVERY_BASE_FEE", new BigDecimal("15000"));
-        BigDecimal baseDistance = getSystemConfigValue("DELIVERY_BASE_DISTANCE", new BigDecimal("3"));
-        BigDecimal perKmFee = getSystemConfigValue("DELIVERY_PER_KM_FEE", new BigDecimal("5000"));
-        BigDecimal minFee = getSystemConfigValue("DELIVERY_MIN_FEE", new BigDecimal("10000"));
+        BigDecimal baseFee = getSystemConfigValue("DELIVERY_BASE_FEE");
+        BigDecimal baseDistance = getSystemConfigValue("DELIVERY_BASE_DISTANCE");
+        BigDecimal perKmFee = getSystemConfigValue("DELIVERY_PER_KM_FEE");
+        BigDecimal minFee = getSystemConfigValue("DELIVERY_MIN_FEE");
 
         BigDecimal restLat = getBigDecimalValue(restData, "latitude");
         BigDecimal restLng = getBigDecimalValue(restData, "longitude");
@@ -495,7 +495,7 @@ public class OrderService {
             throw new IdInvalidException("Restaurant location is required");
 
         // STEP 1: Find nearby drivers via Redis GEO (matches eatzy_backend)
-        BigDecimal searchRadius = getSystemConfigValue("DRIVER_SEARCH_RADIUS_KM", new BigDecimal("10.0"));
+        BigDecimal searchRadius = getSystemConfigValue("DRIVER_SEARCH_RADIUS_KM");
         log.info("🔍 Step 1: Searching drivers using Redis GEO within {} km of restaurant", searchRadius);
 
         GeoResults<GeoLocation<Object>> geoResults = redisGeoService.findNearbyDrivers(
@@ -759,7 +759,7 @@ public class OrderService {
         }
 
         // Search radius
-        BigDecimal radiusKm = getSystemConfigValue("DRIVER_SEARCH_RADIUS_KM", new BigDecimal("10.0"));
+        BigDecimal radiusKm = getSystemConfigValue("DRIVER_SEARCH_RADIUS_KM");
 
         log.info("🔍 Searching for alternative drivers via Redis GEO (excluding {} rejected drivers)",
                 rejectedDriverIds.size());
@@ -965,8 +965,18 @@ public class OrderService {
         try {
             authServiceClient.updateDriverStatus(driverId, "AVAILABLE");
             log.info("🟢 Set driver {} status to AVAILABLE after delivery", driverId);
+
+            // Fetch profile and publish event so they can be assigned the next order
+            // automatically
+            Map<String, Object> profile = authServiceClient.getDriverProfileByUserId(driverId);
+            if (profile != null && profile.containsKey("currentLatitude") && profile.containsKey("currentLongitude")) {
+                BigDecimal lat = new BigDecimal(profile.get("currentLatitude").toString());
+                BigDecimal lng = new BigDecimal(profile.get("currentLongitude").toString());
+                orderEventProducer
+                        .publishDriverOnlineEvent(new com.eatzy.common.event.DriverOnlineEvent(driverId, lat, lng));
+            }
         } catch (Exception e) {
-            log.error("Failed to update driver {} status to AVAILABLE: {}", driverId, e.getMessage());
+            log.error("Failed to update driver {} status to AVAILABLE or publish event: {}", driverId, e.getMessage());
         }
 
         // Create earnings summary when order is delivered (matches eatzy_backend)
@@ -1124,16 +1134,105 @@ public class OrderService {
         return drivers;
     }
 
-    private BigDecimal getSystemConfigValue(String key, BigDecimal defaultValue) {
+    private BigDecimal getSystemConfigValue(String key) {
         try {
             Map<String, Object> configData = systemConfigServiceClient.getSystemConfigurationByKey(key);
             if (configData != null && configData.get("configValue") != null) {
                 return new BigDecimal(configData.get("configValue").toString());
             }
         } catch (Exception e) {
-            log.warn("Failed to fetch system config for key: {}. Using default: {}. Reason: {}",
-                    key, defaultValue, e.getMessage());
+            log.warn("Failed to fetch system config for key: {}. Reason: {}",
+                    key, e.getMessage());
         }
-        return defaultValue;
+        return null;
+    }
+
+    @Transactional
+    public boolean findAndAssignNextOrderForSpecificDriver(Long driverId, BigDecimal currentLat,
+            BigDecimal currentLng) {
+        try {
+            // STEP 1: Find all PREPARING orders without driver (ordered by oldest first)
+            List<Order> preparingOrders = orderRepository
+                    .findByOrderStatusAndDriverIdIsNullOrderByPreparingAtAsc("PREPARING");
+
+            if (preparingOrders.isEmpty()) {
+                log.info("No PREPARING orders available for driver {}", driverId);
+                return false;
+            }
+
+            log.info("📋 Found {} PREPARING orders without driver", preparingOrders.size());
+
+            // Get driver profile to check COD limit
+            Map<String, Object> profileData = authServiceClient.getDriverProfileByUserId(driverId);
+            BigDecimal codLimit = null;
+            if (profileData != null) {
+                codLimit = getBigDecimalValue(profileData, "codLimit");
+            }
+
+            // Get search radius
+            BigDecimal radiusKm = getSystemConfigValue("DRIVER_SEARCH_RADIUS_KM");
+
+            // STEP 2: Validate each order against business rules and find the first
+            // suitable one
+            for (Order order : preparingOrders) {
+                try {
+                    Map<String, Object> restData = restaurantServiceClient.getRestaurantById(order.getRestaurantId());
+                    BigDecimal restLat = getBigDecimalValue(restData, "latitude");
+                    BigDecimal restLng = getBigDecimalValue(restData, "longitude");
+
+                    if (restLat == null || restLng == null)
+                        continue;
+
+                    if ("COD".equals(order.getPaymentMethod())) {
+                        if (codLimit == null || codLimit.compareTo(order.getTotalAmount()) < 0) {
+                            log.info("❌ Order {} (COD: {}) exceeds driver's COD limit ({}), skipping",
+                                    order.getId(), order.getTotalAmount(), codLimit);
+                            continue;
+                        }
+                    }
+
+                    BigDecimal distance = mapboxService.getDrivingDistance(currentLat, currentLng, restLat, restLng);
+                    if (distance == null)
+                        continue;
+
+                    log.info("📍 Order {} - Distance to restaurant: {} km (Max radius: {} km)",
+                            order.getId(), distance, radiusKm);
+
+                    if (distance.compareTo(radiusKm) > 0)
+                        continue;
+
+                    // Order is suitable! Check wallet balance before assignment
+                    try {
+                        List<Long> driverIds = java.util.Collections.singletonList(driverId);
+                        List<Long> driversWithBalance = paymentServiceClient.validateDriverWalletBalances(driverIds);
+                        if (driversWithBalance.isEmpty()) {
+                            log.warn("❌ Driver {} has zero wallet balance, skipping order assignment", driverId);
+                            return false; // driver can't accept any order
+                        }
+                    } catch (Exception e) {
+                        log.warn("Failed to validate wallet balances, skipping balance check: {}", e.getMessage());
+                    }
+
+                    log.info("✅ Order {} passed all validations! Assigning driver {}", order.getId(), driverId);
+
+                    order.setDriverId(driverId);
+                    order.setAssignedAt(Instant.now());
+                    order = orderRepository.save(order);
+
+                    authServiceClient.updateDriverStatus(driverId, "UNAVAILABLE");
+                    log.info("🔴 Set driver {} status to UNAVAILABLE after order assignment", driverId);
+
+                    publishStatusChanged(order, "PREPARING", "Tài xế đã được phân công");
+
+                    return true;
+                } catch (Exception e) {
+                    log.error("Error processing order {} for driver {}: {}", order.getId(), driverId, e.getMessage());
+                }
+            }
+            return false;
+        } catch (Exception e) {
+            log.error("Error finding next order for specific driver {}: {}", driverId, e.getMessage());
+            return false;
+        }
     }
 }

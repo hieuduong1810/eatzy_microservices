@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -22,7 +23,11 @@
             --border: #2a2a3e;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
         body {
             font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
@@ -55,7 +60,7 @@
             border-radius: 16px;
             padding: 24px;
             border: 1px solid var(--border);
-            box-shadow: 0 4px 24px rgba(0,0,0,.3);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, .3);
         }
 
         .card h2 {
@@ -80,7 +85,8 @@
             letter-spacing: 0.5px;
         }
 
-        input, select {
+        input,
+        select {
             width: 100%;
             padding: 10px 14px;
             background: var(--bg-input);
@@ -92,7 +98,8 @@
             transition: border-color 0.2s;
         }
 
-        input:focus, select:focus {
+        input:focus,
+        select:focus {
             border-color: var(--primary);
         }
 
@@ -113,22 +120,45 @@
             background: linear-gradient(135deg, var(--primary), var(--primary-light));
             color: white;
         }
-        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
-        .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
 
         .btn-success {
             background: linear-gradient(135deg, var(--success), #55efc4);
             color: #1a1a2e;
         }
-        .btn-success:hover { opacity: 0.9; }
-        .btn-success:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .btn-success:hover {
+            opacity: 0.9;
+        }
+
+        .btn-success:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
 
         .btn-danger {
             background: linear-gradient(135deg, var(--danger), #e17055);
             color: white;
         }
-        .btn-danger:hover { opacity: 0.9; }
-        .btn-danger:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .btn-danger:hover {
+            opacity: 0.9;
+        }
+
+        .btn-danger:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
 
         .btn-group {
             display: flex;
@@ -154,16 +184,43 @@
             animation: pulse 2s infinite;
         }
 
-        .status-disconnected { background: rgba(214,48,49,.15); color: var(--danger); }
-        .status-disconnected .status-dot { background: var(--danger); }
-        .status-connected { background: rgba(0,184,148,.15); color: var(--success); }
-        .status-connected .status-dot { background: var(--success); }
-        .status-connecting { background: rgba(253,203,110,.15); color: var(--warning); }
-        .status-connecting .status-dot { background: var(--warning); }
+        .status-disconnected {
+            background: rgba(214, 48, 49, .15);
+            color: var(--danger);
+        }
+
+        .status-disconnected .status-dot {
+            background: var(--danger);
+        }
+
+        .status-connected {
+            background: rgba(0, 184, 148, .15);
+            color: var(--success);
+        }
+
+        .status-connected .status-dot {
+            background: var(--success);
+        }
+
+        .status-connecting {
+            background: rgba(253, 203, 110, .15);
+            color: var(--warning);
+        }
+
+        .status-connecting .status-dot {
+            background: var(--warning);
+        }
 
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
         }
 
         .log-container {
@@ -184,16 +241,36 @@
 
         .log-entry {
             padding: 2px 0;
-            border-bottom: 1px solid rgba(42,42,62,.3);
+            border-bottom: 1px solid rgba(42, 42, 62, .3);
         }
-        .log-entry:last-child { border-bottom: none; }
 
-        .log-time { color: var(--text-dim); }
-        .log-info { color: #74b9ff; }
-        .log-success { color: var(--success); }
-        .log-error { color: var(--danger); }
-        .log-message { color: var(--warning); }
-        .log-send { color: var(--primary-light); }
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-time {
+            color: var(--text-dim);
+        }
+
+        .log-info {
+            color: #74b9ff;
+        }
+
+        .log-success {
+            color: var(--success);
+        }
+
+        .log-error {
+            color: var(--danger);
+        }
+
+        .log-message {
+            color: var(--warning);
+        }
+
+        .log-send {
+            color: var(--primary-light);
+        }
 
         .token-display {
             background: var(--bg-input);
@@ -232,12 +309,19 @@
             border-radius: 12px;
         }
 
-        .sub-active { background: rgba(0,184,148,.15); color: var(--success); }
-        .sub-inactive { background: rgba(136,136,160,.15); color: var(--text-dim); }
+        .sub-active {
+            background: rgba(0, 184, 148, .15);
+            color: var(--success);
+        }
+
+        .sub-inactive {
+            background: rgba(136, 136, 160, .15);
+            color: var(--text-dim);
+        }
 
         .info-box {
-            background: rgba(108,92,231,.1);
-            border: 1px solid rgba(108,92,231,.3);
+            background: rgba(108, 92, 231, .1);
+            border: 1px solid rgba(108, 92, 231, .3);
             border-radius: 8px;
             padding: 12px;
             margin-bottom: 16px;
@@ -259,9 +343,140 @@
             min-height: 80px;
             outline: none;
         }
-        textarea:focus { border-color: var(--primary); }
+
+        textarea:focus {
+            border-color: var(--primary);
+        }
+
+        /* --- Realistic Chat UI Styles --- */
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 500px;
+            background: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+            border: 1px solid var(--border);
+            margin-top: 16px;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: white;
+            padding: 16px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+            background: #f0f2f5;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .bubble-wrapper {
+            display: flex;
+            flex-direction: column;
+            max-width: 75%;
+        }
+
+        .bubble-wrapper.self {
+            align-self: flex-end;
+            align-items: flex-end;
+        }
+
+        .bubble-wrapper.other {
+            align-self: flex-start;
+            align-items: flex-start;
+        }
+
+        .chat-metadata {
+            font-size: 0.7rem;
+            color: #65676B;
+            margin-bottom: 4px;
+            margin-left: 4px;
+            margin-right: 4px;
+        }
+
+        .chat-bubble {
+            padding: 10px 14px;
+            border-radius: 18px;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            color: #050505;
+            word-wrap: break-word;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .bubble-wrapper.self .chat-bubble {
+            background: var(--primary);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .bubble-wrapper.other .chat-bubble {
+            background: white;
+            border-bottom-left-radius: 4px;
+        }
+
+        .chat-input-area {
+            display: flex;
+            padding: 12px;
+            background: white;
+            border-top: 1px solid #e4e6eb;
+            gap: 8px;
+            align-items: flex-end;
+        }
+
+        .chat-input-area textarea {
+            flex: 1;
+            background: #f0f2f5;
+            color: #050505;
+            border: none;
+            border-radius: 20px;
+            padding: 12px 16px;
+            font-family: inherit;
+            resize: none;
+            min-height: 44px;
+            max-height: 120px;
+        }
+        
+        .chat-input-area textarea:focus {
+            outline: none;
+            background: #e4e6eb;
+        }
+        
+        .chat-input-area button {
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            flex-shrink: 0;
+        }
+        
+        .typing-indicator-ui {
+            font-size: 0.75rem;
+            color: #65676B;
+            height: 16px;
+            margin-left: 16px;
+            margin-bottom: 8px;
+            font-style: italic;
+        }
     </style>
 </head>
+
 <body>
     <h1>🔌 Eatzy WebSocket Test Console</h1>
 
@@ -318,71 +533,46 @@
             </ul>
         </div>
 
-        <!-- Step 3: Send Messages -->
-        <div class="card">
-            <h2>💬 Step 3: Gửi Tin Nhắn (Chat)</h2>
-            <div class="form-group">
-                <label>Order ID</label>
-                <input type="number" id="chatOrderId" value="1" />
+        <!-- Step 3: Interactive Chat App -->
+        <div class="card" style="grid-row: span 2;">
+            <h2>💬 Chat Trực Tiếp</h2>
+            <div class="form-group" style="display: flex; gap: 10px;">
+                <input type="number" id="chatOrderId" value="1" placeholder="Nhập Order ID..." style="flex: 1;" />
+                <button class="btn-success" onclick="initChatSession()" id="btnInitChat" disabled>Khởi tạo Cuộc trò chuyện</button>
             </div>
-            <div class="form-group">
-                <label>Message</label>
-                <input type="text" id="chatMessage" value="Xin chào!" />
-            </div>
-            <div class="form-group">
-                <label>Sender Type</label>
-                <select id="chatSenderType">
-                    <option value="CUSTOMER">CUSTOMER</option>
-                    <option value="DRIVER">DRIVER</option>
-                </select>
-            </div>
-            <div class="btn-group">
-                <button class="btn-primary" onclick="sendChat()" id="btnSendChat" disabled>📤 Gửi Chat</button>
-            </div>
-
-            <h2 style="margin-top:20px;">🗺️ Gửi Driver Location</h2>
-            <div class="form-group">
-                <label>Latitude</label>
-                <input type="text" id="driverLat" value="10.8231" />
-            </div>
-            <div class="form-group">
-                <label>Longitude</label>
-                <input type="text" id="driverLng" value="106.6297" />
-            </div>
-            <div class="btn-group">
-                <button class="btn-primary" onclick="sendDriverLocation()" id="btnSendLocation" disabled>📍 Gửi Location</button>
-            </div>
-        </div>
-
-        <!-- Subscribe to chat for specific order -->
-        <div class="card">
-            <h2>🔔 Subscribe Thêm Kênh</h2>
-            <div class="form-group">
-                <label>Subscribe Chat cho Order ID</label>
-                <input type="number" id="subChatOrderId" value="1" />
-            </div>
-            <div class="btn-group">
-                <button class="btn-success" onclick="subscribeChatOrder()" id="btnSubChat" disabled>➕ Subscribe Chat</button>
+            
+            <div class="chat-container">
+                <div class="chat-header">
+                    <span id="chatTitle">Order #...</span>
+                    <div style="font-size: 0.8rem; background: rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 12px;" id="chatRoleTag">Role: N/A</div>
+                </div>
+                <div class="chat-messages" id="chatHistoryBox">
+                    <div style="text-align: center; color: #8888a0; font-size: 0.85rem; margin-top: auto; margin-bottom: auto;">
+                        Vui lòng Khởi tạo cuộc trò chuyện để bắt đầu.
+                    </div>
+                </div>
+                <div class="typing-indicator-ui" id="typingStatus"></div>
+                <div class="chat-input-area">
+                    <textarea id="chatMessage" placeholder="Nhập tin nhắn..." oninput="sendTypingIndicator()" onkeypress="handleEnter(event)" disabled></textarea>
+                    <button id="btnSendChat" onclick="sendChat()" disabled>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                    </button>
+                </div>
             </div>
 
-            <h2 style="margin-top:20px;">📝 Custom STOMP Send</h2>
-            <div class="form-group">
-                <label>Destination</label>
-                <input type="text" id="customDest" value="/app/chat/1" />
-            </div>
-            <div class="form-group">
-                <label>JSON Body</label>
-                <textarea id="customBody">{"message":"Hello","senderType":"CUSTOMER"}</textarea>
-            </div>
-            <div class="btn-group">
-                <button class="btn-primary" onclick="sendCustom()" id="btnSendCustom" disabled>🚀 Send</button>
+            <h2 style="margin-top:24px;">🗺️ Gửi Driver Location</h2>
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="driverLat" value="10.8231" placeholder="Lat" />
+                <input type="text" id="driverLng" value="106.6297" placeholder="Lng" />
+                <button class="btn-primary" onclick="sendDriverLocation()" id="btnSendLocation" disabled style="white-space: nowrap;">📍 Gửi Location</button>
             </div>
         </div>
 
         <!-- Log -->
         <div class="card log-container">
             <h2>📜 Realtime Log
-                <button class="btn-danger" style="margin-left:auto; font-size:0.75rem; padding:4px 12px;" onclick="clearLog()">🗑️ Clear</button>
+                <button class="btn-danger" style="margin-left:auto; font-size:0.75rem; padding:4px 12px;"
+                    onclick="clearLog()">🗑️ Clear</button>
             </h2>
             <div id="log"></div>
         </div>
@@ -392,6 +582,7 @@
         let stompClient = null;
         let accessToken = null;
         let subscriptions = {};
+        let currentUserRole = 'UNKNOWN';
 
         // ============ LOGGING ============
         function log(message, type = 'info') {
@@ -430,7 +621,7 @@
                 }
 
                 const data = await response.json();
-                
+
                 // Extract token - support both CamelCase and snake_case just in case
                 if (data.accessToken) {
                     accessToken = data.accessToken;
@@ -445,8 +636,29 @@
                     throw new Error('Token not found');
                 }
 
-                log(`✅ Đăng nhập thành công!`, 'success');
+                // Determine user role from login response or email heuristic
+                try {
+                    const userData = data.data && data.data.user ? data.data.user : (data.user || null);
+                    const roleName = userData && userData.role ? userData.role.name : '';
+                    if (roleName.toUpperCase().includes('DRIVER')) {
+                        currentUserRole = 'DRIVER';
+                    } else if (roleName.toUpperCase().includes('CUSTOMER')) {
+                        currentUserRole = 'CUSTOMER';
+                    } else {
+                        // Fallback: heuristic from email
+                        if (email.toLowerCase().includes('driver')) {
+                            currentUserRole = 'DRIVER';
+                        } else {
+                            currentUserRole = 'CUSTOMER';
+                        }
+                    }
+                } catch(e) {
+                    currentUserRole = email.toLowerCase().includes('driver') ? 'DRIVER' : 'CUSTOMER';
+                }
+
+                log(`✅ Đăng nhập thành công! Role: ${currentUserRole}`, 'success');
                 log(`📋 Token: ${accessToken.substring(0, 50)}...`, 'info');
+                document.getElementById('chatRoleTag').textContent = `Role: ${currentUserRole}`;
 
                 // Show token
                 const tokenDiv = document.getElementById('tokenDisplay');
@@ -479,7 +691,7 @@
             stompClient = Stomp.over(socket);
 
             // Optional: reduce STOMP debug noise
-            stompClient.debug = function(msg) {
+            stompClient.debug = function (msg) {
                 if (msg.includes('CONNECTED') || msg.includes('ERROR') || msg.includes('DISCONNECT')) {
                     log(`🔧 STOMP: ${msg}`, 'info');
                 }
@@ -490,9 +702,9 @@
                 'Authorization': 'Bearer ' + accessToken
             };
 
-            stompClient.connect(headers, 
+            stompClient.connect(headers,
                 // onConnect callback
-                function(frame) {
+                function (frame) {
                     log(`✅ STOMP CONNECTED! Server: ${frame}`, 'success');
                     updateStatus('connected');
                     enableButtons(true);
@@ -503,7 +715,7 @@
                     subscribeToChannel('/user/queue/driver-location', 'Driver Location');
                 },
                 // onError callback
-                function(error) {
+                function (error) {
                     log(`❌ STOMP ERROR: ${error}`, 'error');
                     updateStatus('disconnected');
                     enableButtons(false);
@@ -514,7 +726,7 @@
 
         function disconnectWS() {
             if (stompClient) {
-                stompClient.disconnect(function() {
+                stompClient.disconnect(function () {
                     log('⛔ Đã ngắt kết nối WebSocket', 'error');
                     updateStatus('disconnected');
                     enableButtons(false);
@@ -525,83 +737,213 @@
             }
         }
 
-        // ============ SUBSCRIPTIONS ============
-        function subscribeToChannel(destination, label) {
-            if (subscriptions[destination]) {
-                log(`⚠️ Đã subscribe ${destination} rồi`, 'info');
+        function enableButtons(connected) {
+            document.getElementById('btnConnect').disabled = connected;
+            document.getElementById('btnDisconnect').disabled = !connected;
+            document.getElementById('btnInitChat').disabled = !connected;
+            document.getElementById('btnSendLocation').disabled = !connected;
+        }
+
+        async function initChatSession() {
+            const orderId = document.getElementById('chatOrderId').value;
+            if (!orderId) {
+                log('❌ Vui lòng nhập Order ID', 'error');
                 return;
             }
 
-            const sub = stompClient.subscribe(destination, function(message) {
-                const body = JSON.parse(message.body);
-                log(`📨 [${label}] ${destination}: ${JSON.stringify(body, null, 2)}`, 'message');
-            });
-
-            subscriptions[destination] = sub;
-            log(`📋 Subscribed to ${destination}`, 'success');
-            updateSubList();
-        }
-
-        function subscribeChatOrder() {
-            const orderId = document.getElementById('subChatOrderId').value;
+            document.getElementById('chatTitle').textContent = `Order #${orderId}`;
+            
+            // Subscribe to order chat channel
             const dest = `/user/queue/chat/order/${orderId}`;
             subscribeToChannel(dest, `Chat Order #${orderId}`);
 
-            // Also subscribe to typing indicator
+            // Subscribe to typing indicator
             const typingDest = `/user/queue/chat/order/${orderId}/typing`;
-            subscribeToChannel(typingDest, `Typing Order #${orderId}`);
-        }
-
-        // ============ SEND MESSAGES ============
-        function sendChat() {
-            if (!stompClient || !stompClient.connected) {
-                log('❌ Chưa kết nối WebSocket!', 'error');
-                return;
+            if (!subscriptions[typingDest]) {
+                const sub = stompClient.subscribe(typingDest, function (message) {
+                    const body = JSON.parse(message.body);
+                    const typingStatus = document.getElementById('typingStatus');
+                    typingStatus.textContent = `${body.senderType} đang nhập...`;
+                    
+                    if(window.typingTimeout) clearTimeout(window.typingTimeout);
+                    window.typingTimeout = setTimeout(() => {
+                        typingStatus.textContent = '';
+                    }, 3000);
+                });
+                subscriptions[typingDest] = sub;
             }
 
+            // Enable inputs
+            document.getElementById('chatMessage').disabled = false;
+            document.getElementById('btnSendChat').disabled = false;
+
+            // Fetch history
+            await fetchChatHistory(orderId);
+        }
+
+        async function fetchChatHistory(orderId) {
+            const gatewayUrl = document.getElementById('gatewayUrl').value;
+            const historyBox = document.getElementById('chatHistoryBox');
+            
+            log(`🔄 Đang lấy lịch sử chat cho order ${orderId}...`, 'info');
+            historyBox.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-dim);">Đang tải...</div>';
+            
+            try {
+                // Use the role determined during login
+                let myRole = currentUserRole;
+                document.getElementById('chatRoleTag').textContent = `Role: ${myRole}`;
+                
+                const response = await fetch(`${gatewayUrl}/api/v1/chat/order/${orderId}?size=50`, {
+                    method: 'GET',
+                    headers: { 'Authorization': 'Bearer ' + accessToken }
+                });
+                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const responseBody = await response.json();
+                // Unwrap from global response wrapper: {statusCode, data, message}
+                const messages = responseBody.data || responseBody;
+                
+                if (!Array.isArray(messages) || messages.length === 0) {
+                    historyBox.innerHTML = '<div style="text-align:center; color:#8888a0; font-size:0.85rem; padding: 20px;">Chưa có tin nhắn nào. Hãy gửi tin nhắn đầu tiên!</div>';
+                } else {
+                    historyBox.innerHTML = messages.map(msg => renderBubble(msg, myRole)).join('');
+                    historyBox.scrollTop = historyBox.scrollHeight;
+                }
+                log(`✅ Đã tải ${messages.length} tin nhắn lịch sử.`, 'success');
+            } catch (error) {
+                historyBox.innerHTML = `<div style="text-align:center; color:red; padding: 20px;">Lỗi tải lịch sử: ${error.message}</div>`;
+            }
+        }
+
+        function renderBubble(msg, myRole) {
+            const msgDate = new Date(msg.timestamp || Date.now());
+            const today = new Date();
+            const isToday = msgDate.getDate() === today.getDate() 
+                         && msgDate.getMonth() === today.getMonth() 
+                         && msgDate.getFullYear() === today.getFullYear();
+            const time = isToday 
+                ? msgDate.toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})
+                : msgDate.toLocaleDateString('vi-VN', {day:'2-digit', month:'2-digit'}) + ' ' + msgDate.toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'});
+            
+            // Caching our own role helps determine self vs other
+            // If myRole isn't determined, fallback to identifying by senderType from backend.
+            const isSelf = myRole !== 'UNKNOWN' ? msg.senderType === myRole : msg.senderType === 'DRIVER'; // default view
+            
+            const wrapperClass = isSelf ? 'self' : 'other';
+            const author = isSelf ? 'Bạn' : (msg.senderName || msg.senderType);
+
+            return `
+                <div class="bubble-wrapper ${wrapperClass}">
+                    <div class="chat-metadata">${author} • ${time}</div>
+                    <div class="chat-bubble">${msg.message}</div>
+                </div>
+            `;
+        }
+
+        function handleEnter(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendChat();
+            }
+        }
+
+        let lastTypingTime = 0;
+        function sendTypingIndicator() {
+            if (!stompClient || !stompClient.connected) return;
+            const now = Date.now();
+            if (now - lastTypingTime < 2000) return;
+            
+            lastTypingTime = now;
             const orderId = document.getElementById('chatOrderId').value;
-            const message = document.getElementById('chatMessage').value;
-            const senderType = document.getElementById('chatSenderType').value;
+            stompClient.send(`/app/typing/${orderId}`, {}, JSON.stringify({ messageType: 'TYPING' }));
+        }
+
+        function sendChat() {
+            if (!stompClient || !stompClient.connected) return;
+
+            const orderId = document.getElementById('chatOrderId').value;
+            const messageInput = document.getElementById('chatMessage');
+            const message = messageInput.value.trim();
+            
+            if (!message) return;
 
             const payload = {
                 message: message,
-                senderType: senderType,
                 messageType: 'TEXT'
             };
 
             stompClient.send(`/app/chat/${orderId}`, {}, JSON.stringify(payload));
-            log(`📤 Sent chat to /app/chat/${orderId}: ${JSON.stringify(payload)}`, 'send');
+            log(`📤 Sent chat to /app/chat/${orderId}: ${message}`, 'send');
+            
+            // Hiển thị ngay lập tức lên UI (Optimistic Rendering)
+            const roleText = document.getElementById('chatRoleTag').textContent;
+            let myRole = roleText.includes('DRIVER') ? 'DRIVER' : (roleText.includes('CUSTOMER') ? 'CUSTOMER' : 'UNKNOWN');
+            
+            const historyBox = document.getElementById('chatHistoryBox');
+            if (historyBox.innerHTML.includes('Chưa có tin nhắn nào')) {
+                historyBox.innerHTML = '';
+            }
+            
+            // Xóa indicator
+            document.getElementById('typingStatus').textContent = '';
+            
+            historyBox.innerHTML += renderBubble({
+                message: message,
+                senderType: myRole !== 'UNKNOWN' ? myRole : 'ME', // Force self
+                timestamp: Date.now()
+            }, myRole !== 'UNKNOWN' ? myRole : 'ME');
+            
+            historyBox.scrollTop = historyBox.scrollHeight;
+
+            // Xóa ô nhập liệu
+            messageInput.value = '';
         }
 
         function sendDriverLocation() {
-            if (!stompClient || !stompClient.connected) {
-                log('❌ Chưa kết nối WebSocket!', 'error');
-                return;
-            }
-
+            if (!stompClient || !stompClient.connected) return;
             const lat = document.getElementById('driverLat').value;
             const lng = document.getElementById('driverLng').value;
-
-            const payload = {
-                latitude: parseFloat(lat),
-                longitude: parseFloat(lng)
-            };
-
+            const payload = { latitude: parseFloat(lat), longitude: parseFloat(lng) };
             stompClient.send('/app/driver/location', {}, JSON.stringify(payload));
-            log(`📍 Sent driver location: ${JSON.stringify(payload)}`, 'send');
+            log(`📍 Sent location: ${lat}, ${lng}`, 'send');
         }
 
-        function sendCustom() {
-            if (!stompClient || !stompClient.connected) {
-                log('❌ Chưa kết nối WebSocket!', 'error');
-                return;
-            }
+        // Override subscribeToChannel to handle incoming chat bubbles
+        function subscribeToChannel(destination, label) {
+            if (subscriptions[destination]) return;
 
-            const dest = document.getElementById('customDest').value;
-            const body = document.getElementById('customBody').value;
+            const sub = stompClient.subscribe(destination, function (message) {
+                const body = JSON.parse(message.body);
+                log(`📨 [${label}] ${destination}: ${JSON.stringify(body)}`, 'message');
+                
+                // Check if this is a chat message that should be rendered as a bubble
+                const isChatChannel = destination.includes('/queue/chat/order/') && !destination.includes('/typing');
+                const isSystemChatMsg = destination === '/user/queue/system' && body.type === 'CHAT_MESSAGE';
+                
+                if (isChatChannel || isSystemChatMsg) {
+                    document.getElementById('typingStatus').textContent = '';
+                    
+                    const historyBox = document.getElementById('chatHistoryBox');
+                    if (historyBox.innerHTML.includes('Chưa có tin nhắn nào')) {
+                        historyBox.innerHTML = '';
+                    }
 
-            stompClient.send(dest, {}, body);
-            log(`🚀 Custom send to ${dest}: ${body}`, 'send');
+                    const myRole = currentUserRole;
+                    
+                    historyBox.innerHTML += renderBubble({
+                        message: body.message,
+                        senderType: body.senderType,
+                        senderName: body.senderName,
+                        timestamp: body.timestamp || Date.now()
+                    }, myRole);
+                    
+                    historyBox.scrollTop = historyBox.scrollHeight;
+                }
+            });
+
+            subscriptions[destination] = sub;
+            updateSubList();
         }
 
         // ============ UI HELPERS ============
@@ -610,15 +952,6 @@
             el.className = `status status-${status}`;
             const labels = { connected: 'Connected', disconnected: 'Disconnected', connecting: 'Connecting...' };
             el.innerHTML = `<span class="status-dot"></span> ${labels[status]}`;
-        }
-
-        function enableButtons(connected) {
-            document.getElementById('btnConnect').disabled = connected;
-            document.getElementById('btnDisconnect').disabled = !connected;
-            document.getElementById('btnSendChat').disabled = !connected;
-            document.getElementById('btnSendLocation').disabled = !connected;
-            document.getElementById('btnSubChat').disabled = !connected;
-            document.getElementById('btnSendCustom').disabled = !connected;
         }
 
         function updateSubList() {
@@ -633,8 +966,24 @@
         }
 
         // Initial log
-        log('🚀 Eatzy WebSocket Test Console ready', 'info');
-        log('📌 Flow: Login → Connect WebSocket → Subscribe → Nhận/Gửi messages', 'info');
+        log('🚀 Chat UI System ready', 'info');
+        log('📌 Flow: Login → Connect WebSocket → Nhập Order ID → Khởi tạo trò chuyện', 'info');
+
+        // Auto config URLs based on current host to prevent "Failed to fetch" due to localhost mismatch
+        window.addEventListener('DOMContentLoaded', () => {
+            if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                const origin = window.location.origin;
+                // Nếu đang truy cập qua domain, đổi gateway URL
+                document.getElementById('gatewayUrl').value = origin;
+                
+                // Nếu api gateway và communication service chạy riêng, thì ws sẽ khác
+                // Nhưng thường qua api-gateway thì websocket cũng được route qua gateway luôn.
+                // Nếu gateway route /ws tới EATZY-COMMUNICATION-SERVICE thì:
+                // wsUrl có thể là origin + "/ws" nếu bạn cấu hình route cho WS trên Gateway.
+                // Ở đây giữ nguyên port 8084 nhưng thay đổi host nếu cần, hoặc mặc định theo ý ngưởi dùng.
+            }
+        });
     </script>
 </body>
+
 </html>

@@ -79,12 +79,13 @@ public class OrderMapper {
                     ResOrderDTO.Customer customer = new ResOrderDTO.Customer();
                     customer.setId(order.getCustomerId());
                     customer.setName(getStringValue(userData, "name"));
+                    customer.setEmail(getStringValue(userData, "email"));
                     customer.setPhoneNumber(getStringValue(userData, "phoneNumber"));
                     dto.setCustomer(customer);
                 }
             } catch (Exception e) {
                 log.warn("Failed to enrich customer info for order {}: {}", order.getId(), e.getMessage());
-                dto.setCustomer(new ResOrderDTO.Customer(order.getCustomerId(), null, null));
+                dto.setCustomer(new ResOrderDTO.Customer(order.getCustomerId(), null, null, null));
             }
         }
 
@@ -126,6 +127,7 @@ public class OrderMapper {
                     ResOrderDTO.Driver driver = new ResOrderDTO.Driver();
                     driver.setId(order.getDriverId());
                     driver.setName(getStringValue(driverData, "name"));
+                    driver.setEmail(getStringValue(driverData, "email"));
                     driver.setPhoneNumber(getStringValue(driverData, "phoneNumber"));
                     if (driverProfile != null) {
                         driver.setVehicleType(getStringValue(driverProfile, "vehicleType"));

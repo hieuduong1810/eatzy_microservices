@@ -79,7 +79,7 @@ public class UserController {
     }
 
     // This endpoint triggers the Observer Pattern -> Kafka event
-    @PatchMapping("/{id}/status")
+    @PutMapping("/{id}/active")
     @ApiMessage("Update user active status")
     public ResponseEntity<ResUserDTO> updateUserStatus(
             @PathVariable("id") Long id,

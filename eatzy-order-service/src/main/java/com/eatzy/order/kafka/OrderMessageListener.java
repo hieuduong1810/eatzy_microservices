@@ -75,30 +75,7 @@ public class OrderMessageListener {
                 event.getDriverId(), event.getLatitude(), event.getLongitude());
 
         try {
-            // Find PREPARING orders that have no driver assigned (oldest first)
-            List<Order> waitingOrders = orderRepository
-                    .findByOrderStatusAndDriverIdIsNullOrderByPreparingAtAsc("PREPARING");
-
-            if (waitingOrders.isEmpty()) {
-                log.info("No waiting orders to assign to newly online driver {}", event.getDriverId());
-                return;
-            }
-
-            log.info("🔍 Found {} PREPARING orders without driver, attempting assignment", waitingOrders.size());
-
-            // Try to assign driver to each waiting order (oldest first)
-            for (Order order : waitingOrders) {
-                try {
-                    orderService.assignDriver(order.getId());
-                    log.info("✅ Successfully assigned driver to order {} after driver {} went online",
-                            order.getId(), event.getDriverId());
-                    // After successful assignment, the driver is set to UNAVAILABLE,
-                    // so no need to try assigning more orders to this driver
-                    break;
-                } catch (IdInvalidException e) {
-                    log.warn("Could not assign driver to order {}: {}", order.getId(), e.getMessage());
-                }
-            }
+            orderService.findAndAssignNextOrderForSpecificDriver(event.getDriverId(), event.getLatitude(), event.getLongitude());
         } catch (Exception e) {
             log.error("Error handling DriverOnlineEvent for driver {}: {}",
                     event.getDriverId(), e.getMessage(), e);

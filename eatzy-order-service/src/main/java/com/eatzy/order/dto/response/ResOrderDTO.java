@@ -46,6 +46,7 @@ public class ResOrderDTO {
     public static class Customer {
         private long id;
         private String name;
+        private String email;
         private String phoneNumber;
     }
 
@@ -56,6 +57,7 @@ public class ResOrderDTO {
     public static class Driver {
         private long id;
         private String name;
+        private String email;
         private String vehicleType;
         private String vehicleDetails;
         private String averageRating;

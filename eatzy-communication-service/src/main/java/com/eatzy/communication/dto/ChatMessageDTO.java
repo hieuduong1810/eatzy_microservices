@@ -14,6 +14,7 @@ import java.time.Instant;
 public class ChatMessageDTO {
     private Long orderId;
     private Long senderId;
+    private Long recipientId;  // set by server from order data
     private String senderName;
     private String senderType; // "DRIVER" or "CUSTOMER"
     private String message;

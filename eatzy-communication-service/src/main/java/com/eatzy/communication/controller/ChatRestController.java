@@ -25,9 +25,9 @@ public class ChatRestController {
      */
     @GetMapping("/order/{orderId}")
     public ResponseEntity<List<ChatMessageDTO>> getOrderChatHistory(
-            @PathVariable Long orderId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "50") int size) {
+            @PathVariable("orderId") Long orderId,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "50") int size) {
         
         // Assume security filter allows the correct users
         List<ChatMessageDTO> messages = chatMessageService.getMessageHistory(orderId, page, size);
@@ -38,7 +38,7 @@ public class ChatRestController {
      * Get message count for an order
      */
     @GetMapping("/order/{orderId}/count")
-    public ResponseEntity<Long> getMessageCount(@PathVariable Long orderId) {
+    public ResponseEntity<Long> getMessageCount(@PathVariable("orderId") Long orderId) {
         return ResponseEntity.ok(chatMessageService.getMessageCount(orderId));
     }
 }
