@@ -150,6 +150,11 @@ public class OrderService {
                 .map(orderMapper::toResOrderDTO).collect(Collectors.toList());
     }
 
+    public ResOrderDTO getActiveOrderDTOByDriverId(Long driverId) {
+        Order order = orderRepository.findFirstByDriverIdAndOrderStatusIn(driverId, Arrays.asList("DRIVER_ASSIGNED", "READY", "PICKED_UP", "ARRIVED"));
+        return order != null ? orderMapper.toResOrderDTO(order) : null;
+    }
+
     public List<ResOrderDTO> getOrdersDTOByRestaurantIdAndStatus(Long restaurantId, String status) {
         return orderRepository.findByRestaurantIdAndOrderStatus(restaurantId, status).stream()
                 .map(orderMapper::toResOrderDTO).collect(Collectors.toList());

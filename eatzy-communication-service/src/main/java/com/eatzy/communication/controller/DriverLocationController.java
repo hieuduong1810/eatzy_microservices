@@ -34,36 +34,46 @@ public class DriverLocationController {
         this.orderServiceClient = orderServiceClient;
     }
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(DriverLocationController.class);
+
     @MessageMapping("/driver/location")
     public void updateDriverLocation(@Payload DriverLocationUpdate locationUpdate, Principal principal) {
         String driverEmail = principal != null ? principal.getName() : null;
-        if (driverEmail == null)
-            return;
-
-        // In a real app, we need to extract the Driver user object.
-        // As a shortcut, if we assume the client includes orderId or driverId in a
-        // wrapper,
-        // we can fetch it. Or we fetch user by email logic which isn't available in
-        // AuthServiceClient atm.
-        // For simplicity in this demo, let's assume the client passes the active
-        // orderId in a wrapper or
-        // we broadcast the location to the customer directly if order is provided.
-        // Here we just accept the payload. To fully decouple, we would add "active
-        // order lookup" to OrderService.
+        if (driverEmail == null) return;
 
         locationUpdate.setTimestamp(Instant.now());
 
-        // This requires driverId... Since we only have email from Principal,
-        // we might skip Redis GEO storage for a minute or add getUserByEmail to
-        // AuthAdapter.
-        // We'll stub driverId as 1L for compiling, in reality Auth API needs
-        // /users/email endpoint.
-        redisGeoService.updateDriverLocation(1L, locationUpdate.getLatitude(), locationUpdate.getLongitude());
+        Long driverId = null;
+        try {
+            Map<String, Object> userData = authServiceClient.getUserByEmail(driverEmail);
+            if (userData != null && userData.containsKey("id")) {
+                driverId = Long.parseLong(userData.get("id").toString());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to get driver ID for email {}: {}", driverEmail, e.getMessage());
+        }
 
-        // Example: If we know customerEmail, send via Factory:
-        // DriverLocationNotification n =
-        // NotificationFactory.createDriverLocationNotification(customerEmail, lat,
-        // lon);
-        // webSocketService.pushNotification(n);
+        if (driverId == null) return;
+
+        redisGeoService.updateDriverLocation(driverId, locationUpdate.getLatitude(), locationUpdate.getLongitude());
+
+        Map<String, Object> orderMap = null;
+        try {
+            orderMap = orderServiceClient.getActiveOrderByDriverId(driverId);
+        } catch (Exception e) {
+            // No active order found or service down
+        }
+
+        if (orderMap != null && !orderMap.isEmpty()) {
+            Object customerObj = orderMap.get("customer");
+            if (customerObj instanceof Map) {
+                String customerEmail = (String) ((Map<?, ?>) customerObj).get("email");
+                if (customerEmail != null) {
+                    DriverLocationNotification n = NotificationFactory.createDriverLocationNotification(
+                            customerEmail, locationUpdate.getLatitude(), locationUpdate.getLongitude());
+                    webSocketService.pushNotification(n);
+                }
+            }
+        }
     }
 }

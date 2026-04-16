@@ -99,6 +99,15 @@ public class OrderController {
         return ResponseEntity.ok(orderService.getOrdersDTOByDriverIdWithSpec(driverId, spec, pageable));
     }
 
+    @GetMapping("/orders/driver/{driverId}/active")
+    public ResponseEntity<ResOrderDTO> getActiveOrderByDriverId(@PathVariable("driverId") Long driverId) {
+        ResOrderDTO orderDTO = orderService.getActiveOrderDTOByDriverId(driverId);
+        if (orderDTO == null) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(orderDTO);
+    }
+
     @GetMapping("/orders/restaurant/{restaurantId}/status/{status}")
     public ResponseEntity<List<ResOrderDTO>> getOrdersByRestaurantAndStatus(
             @PathVariable("restaurantId") Long restaurantId, @PathVariable("status") String status) {

@@ -509,11 +509,11 @@
         <div class="card">
             <h2>📡 Step 2: Kết Nối WebSocket</h2>
             <div class="info-box">
-                Kết nối trực tiếp tới Communication Service. Token sẽ được gửi trong STOMP CONNECT header.
+                Kết nối thông qua API Gateway. Token sẽ được gửi trong STOMP CONNECT header.
             </div>
             <div class="form-group">
-                <label>WebSocket URL (Communication Service)</label>
-                <input type="text" id="wsUrl" value="http://localhost:8084/ws" />
+                <label>WebSocket URL (via API Gateway)</label>
+                <input type="text" id="wsUrl" value="http://localhost:8080/ws" />
             </div>
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
                 <span id="wsStatus" class="status status-disconnected">

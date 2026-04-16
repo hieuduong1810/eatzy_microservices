@@ -13,4 +13,7 @@ import java.util.Map;
 public interface OrderServiceClient {
     @GetMapping("/api/v1/orders/{orderId}")
     Map<String, Object> getOrderById(@PathVariable("orderId") Long orderId);
+
+    @GetMapping("/api/v1/orders/driver/{driverId}/active")
+    Map<String, Object> getActiveOrderByDriverId(@PathVariable("driverId") Long driverId);
 }

@@ -13,4 +13,7 @@ import java.util.Map;
 public interface AuthServiceClient {
     @GetMapping("/api/v1/users/{userId}")
     Map<String, Object> getUserById(@PathVariable("userId") Long userId);
+
+    @GetMapping("/api/v1/users/email/{email}")
+    Map<String, Object> getUserByEmail(@PathVariable("email") String email);
 }

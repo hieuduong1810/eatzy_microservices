@@ -41,6 +41,10 @@ spring:
           uri: lb://EATZY-COMMUNICATION-SERVICE
           predicates:
             - Path=/api/v1/chat/**
+        - id: eatzy-communication-service-ws
+          uri: lb:ws://EATZY-COMMUNICATION-SERVICE
+          predicates:
+            - Path=/ws/**
         - id: eatzy-cart-service
           uri: lb://EATZY-CART-SERVICE
           predicates:
