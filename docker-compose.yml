@@ -1,8 +1,23 @@
 version: '3.8'
+
+x-env-mapping: &env-mapping
+  EUREKA_URL: http://eatzy-discovery-server:8761/eureka/
+  EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eatzy-discovery-server:8761/eureka/
+  DB_HOST: mariadb
+  DB_PORT: 3306
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+  SPRING_CONFIG_IMPORT: optional:configserver:http://eatzy-config-server:8888
+
 services:
+  # ==========================================
+  # =============== INFRASTRUCTURE ===========
+  # ==========================================
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
     container_name: zookeeper
+    restart: always
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -12,6 +27,7 @@ services:
   kafka:
     image: confluentinc/cp-kafka:7.4.0
     container_name: kafka
+    restart: always
     depends_on:
       - zookeeper
     ports:
@@ -19,7 +35,238 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_LISTENERS: DOCKER://0.0.0.0:29092,HOST://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: DOCKER://kafka:29092,HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: DOCKER:PLAINTEXT,HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: DOCKER
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  mariadb:
+    image: mariadb:10.11
+    container_name: mariadb
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: 123456
+    ports:
+      - "3307:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: always
+    env_file:
+      - .env
+    command: sh -c 'redis-server --requirepass "$${REDIS_PASSWORD:-}"'
+    ports:
+      - "6379:6379"
+
+  adminer:
+    image: adminer:latest
+    container_name: adminer
+    restart: always
+    ports:
+      - "8089:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: mariadb
+    depends_on:
+      - mariadb
+
+  # ==========================================
+  # ============ CORE SERVICES ===============
+  # ==========================================
+  eatzy-discovery-server:
+    build:
+      context: .
+      dockerfile: eatzy-discovery-server/Dockerfile
+    container_name: eatzy-discovery-server
+    restart: always
+    ports:
+      - "8761:8761"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8761/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  eatzy-config-server:
+    build:
+      context: .
+      dockerfile: eatzy-config-server/Dockerfile
+    container_name: eatzy-config-server
+    restart: always
+    ports:
+      - "8888:8888"
+    depends_on:
+      - eatzy-discovery-server
+    env_file:
+      - .env
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eatzy-discovery-server:8761/eureka/
+
+  # ==========================================
+  # ============ BUSINESS SERVICES ===========
+  # ==========================================
+  eatzy-api-gateway:
+    build:
+      context: .
+      dockerfile: eatzy-api-gateway/Dockerfile
+    container_name: eatzy-api-gateway
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - eatzy-discovery-server
+      - eatzy-config-server
+    env_file:
+      - .env
+    environment:
+      <<: *env-mapping
+
+  eatzy-auth-service:
+    build:
+      context: .
+      dockerfile: eatzy-auth-service/Dockerfile
+    container_name: eatzy-auth-service
+    restart: always
+    ports:
+      - "8081:8081"
+    depends_on:
+      - eatzy-discovery-server
+      - eatzy-config-server
+      - mariadb
+      - redis
+      - kafka
+    env_file:
+      - .env
+    environment:
+      <<: *env-mapping
+
+  eatzy-restaurant-service:
+    build:
+      context: .
+      dockerfile: eatzy-restaurant-service/Dockerfile
+    container_name: eatzy-restaurant-service
+    restart: always
+    ports:
+      - "8082:8082"
+    depends_on:
+      - eatzy-discovery-server
+      - eatzy-config-server
+      - mariadb
+      - kafka
+    env_file:
+      - .env
+    environment:
+      <<: *env-mapping
+
+  eatzy-order-service:
+    build:
+      context: .
+      dockerfile: eatzy-order-service/Dockerfile
+    container_name: eatzy-order-service
+    restart: always
+    ports:
+      - "8083:8083"
+    depends_on:
+      - eatzy-discovery-server
+      - eatzy-config-server
+      - mariadb
+      - redis
+      - kafka
+    env_file:
+      - .env
+    environment:
+      <<: *env-mapping
+
+  eatzy-communication-service:
+    build:
+      context: .
+      dockerfile: eatzy-communication-service/Dockerfile
+    container_name: eatzy-communication-service
+    restart: always
+    ports:
+      - "8084:8084"
+    depends_on:
+      - eatzy-discovery-server
+      - eatzy-config-server
+      - mariadb
+      - redis
+      - kafka
+    env_file:
+      - .env
+    environment:
+      <<: *env-mapping
+
+  eatzy-cart-service:
+    build:
+      context: .
+      dockerfile: eatzy-cart-service/Dockerfile
+    container_name: eatzy-cart-service
+    restart: always
+    ports:
+      - "8085:8085"
+    depends_on:
+      - eatzy-discovery-server
+      - eatzy-config-server
+      - mariadb
+    env_file:
+      - .env
+    environment:
+      <<: *env-mapping
+
+  eatzy-payment-service:
+    build:
+      context: .
+      dockerfile: eatzy-payment-service/Dockerfile
+    container_name: eatzy-payment-service
+    restart: always
+    ports:
+      - "8086:8086"
+    depends_on:
+      - eatzy-discovery-server
+      - eatzy-config-server
+      - mariadb
+    env_file:
+      - .env
+    environment:
+      <<: *env-mapping
+
+  eatzy-interaction-service:
+    build:
+      context: .
+      dockerfile: eatzy-interaction-service/Dockerfile
+    container_name: eatzy-interaction-service
+    restart: always
+    ports:
+      - "8087:8087"
+    depends_on:
+      - eatzy-discovery-server
+      - eatzy-config-server
+      - mariadb
+      - kafka
+    env_file:
+      - .env
+    environment:
+      <<: *env-mapping
+
+  eatzy-system-config-service:
+    build:
+      context: .
+      dockerfile: eatzy-system-config-service/Dockerfile
+    container_name: eatzy-system-config-service
+    restart: always
+    ports:
+      - "8088:8088"
+    depends_on:
+      - eatzy-discovery-server
+      - eatzy-config-server
+      - mariadb
+    env_file:
+      - .env
+    environment:
+      <<: *env-mapping

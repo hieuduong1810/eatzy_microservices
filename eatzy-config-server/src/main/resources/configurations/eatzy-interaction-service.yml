@@ -21,21 +21,6 @@ spring:
     properties:
       hibernate:
         format_sql: true
-
-# JWT
-foodDelivery:
-  jwt:
-    base64-secret: ${JWT_BASE64_SECRET}
-    access-token-validity-in-seconds: ${JWT_ACCESS_TOKEN_VALIDITY:8640000}
-    refresh-token-validity-in-seconds: ${JWT_REFRESH_TOKEN_VALIDITY:8640000}
-
-# Security
-security:
-  oauth2:
-    resourceserver:
-      jwt: {}
-
-# Kafka
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
@@ -48,3 +33,13 @@ security:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+app:
+  jwks:
+    uri: http://eatzy-auth-service:8081/.well-known/jwks.json
+
+# Security
+security:
+  oauth2:
+    resourceserver:
+      jwt: {}

@@ -5,37 +5,31 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
-
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
-
 import org.springframework.beans.factory.annotation.Value;
 
-import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.stereotype.Service;
 
 import com.eatzy.auth.domain.res.ResLoginDTO;
-import com.nimbusds.jose.util.Base64;
 
 @Service
 public class SecurityUtil {
 
     private final JwtEncoder jwtEncoder;
+    private final JwtDecoder jwtDecoder;
 
-    public SecurityUtil(JwtEncoder jwtEncoder) {
+    public SecurityUtil(JwtEncoder jwtEncoder, JwtDecoder jwtDecoder) {
         this.jwtEncoder = jwtEncoder;
+        this.jwtDecoder = jwtDecoder;
     }
 
-    public static final MacAlgorithm JWT_ALGORITHM = MacAlgorithm.HS512;
-
-    @Value("${foodDelivery.jwt.base64-secret}")
-    private String jwtKey;
+    public static final SignatureAlgorithm JWT_ALGORITHM = SignatureAlgorithm.RS256;
 
     @Value("${foodDelivery.jwt.access-token-validity-in-seconds}")
     private long accessTokenExpiration;
@@ -88,14 +82,7 @@ public class SecurityUtil {
         return this.jwtEncoder.encode(JwtEncoderParameters.from(jwsHeader, claims)).getTokenValue();
     }
 
-    private SecretKey getSecretKey() {
-        byte[] keyBytes = Base64.from(jwtKey).decode();
-        return new SecretKeySpec(keyBytes, 0, keyBytes.length, JWT_ALGORITHM.getName());
-    }
-
     public Jwt checkValidRefreshToken(String token) {
-        NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withSecretKey(
-                getSecretKey()).macAlgorithm(SecurityUtil.JWT_ALGORITHM).build();
         try {
             return jwtDecoder.decode(token);
         } catch (Exception e) {
@@ -103,6 +90,4 @@ public class SecurityUtil {
             throw e;
         }
     }
-
-
 }

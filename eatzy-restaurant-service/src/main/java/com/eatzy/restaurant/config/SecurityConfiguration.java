@@ -25,10 +25,8 @@ import com.nimbusds.jose.util.Base64;
 @EnableMethodSecurity(securedEnabled = true)
 public class SecurityConfiguration {
 
-    public static final MacAlgorithm JWT_ALGORITHM = MacAlgorithm.HS512;
-
-    @Value("${foodDelivery.jwt.base64-secret}")
-    private String jwtKey;
+    @Value("${app.jwks.uri}")
+    private String jwkSetUri;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -66,8 +64,7 @@ public class SecurityConfiguration {
 
     @Bean
     public JwtDecoder jwtDecoder() {
-        NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withSecretKey(
-                getSecretKey()).macAlgorithm(JWT_ALGORITHM).build();
+        NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
         return token -> {
             try {
                 return jwtDecoder.decode(token);
@@ -76,10 +73,5 @@ public class SecurityConfiguration {
                 throw e;
             }
         };
-    }
-
-    private SecretKey getSecretKey() {
-        byte[] keyBytes = Base64.from(jwtKey).decode();
-        return new SecretKeySpec(keyBytes, 0, keyBytes.length, JWT_ALGORITHM.getName());
     }
 }

@@ -1,51 +1,47 @@
-package com.eatzy.order.config;
+package com.eatzy.cart.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
-import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.web.SecurityFilterChain;
+
+import com.nimbusds.jose.util.Base64;
+
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
-import com.nimbusds.jose.util.Base64;
 
 @Configuration
 @EnableMethodSecurity(securedEnabled = true)
-public class SecurityConfig {
+public class SecurityConfiguration {
+
+    @Value("${app.jwks.uri}")
+    private String jwkSetUri;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints
-                        .requestMatchers(HttpMethod.POST, "/api/v1/orders/delivery-fee").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/orders/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/earnings/**").permitAll()
-                        .requestMatchers("/v3/api-docs", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        // Secured endpoints
+                        // Internally we might ping some things, but mostly authenticated
+                        .requestMatchers("/v3/api-docs", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
+                        .permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt
                                 .decoder(jwtDecoder())
-                                .jwtAuthenticationConverter(jwtAuthenticationConverter())
-                        ))
+                                .jwtAuthenticationConverter(jwtAuthenticationConverter())))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
         return http.build();
     }
-
-
-    @Value("${foodDelivery.jwt.base64-secret}")
-    private String jwtKey;
 
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
@@ -60,8 +56,7 @@ public class SecurityConfig {
 
     @Bean
     public JwtDecoder jwtDecoder() {
-        NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withSecretKey(
-                getSecretKey()).macAlgorithm(MacAlgorithm.HS512).build();
+        NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
         return token -> {
             try {
                 return jwtDecoder.decode(token);
@@ -70,10 +65,5 @@ public class SecurityConfig {
                 throw e;
             }
         };
-    }
-
-    private SecretKey getSecretKey() {
-        byte[] keyBytes = Base64.from(jwtKey).decode();
-        return new SecretKeySpec(keyBytes, 0, keyBytes.length, MacAlgorithm.HS512.getName());
     }
 }

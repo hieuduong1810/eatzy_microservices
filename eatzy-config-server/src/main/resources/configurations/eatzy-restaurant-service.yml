@@ -9,7 +9,7 @@ eureka:
 # Database (MariaDB)
 spring:
   datasource:
-    url: jdbc:mariadb://${DB_HOST:localhost}:${DB_PORT:3307}/eatzy_restaurant_db
+    url: jdbc:mariadb://${DB_HOST:localhost}:${DB_PORT:3307}/eatzy_restaurant_db?createDatabaseIfNotExist=true
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:123456}
   jpa:
@@ -27,9 +27,6 @@ spring:
       properties:
         spring.json.trusted.packages: "*"
 
-# JWT
-foodDelivery:
-  jwt:
-    base64-secret: ${JWT_BASE64_SECRET}
-    access-token-validity-in-seconds: ${JWT_ACCESS_TOKEN_VALIDITY:8640000}
-    refresh-token-validity-in-seconds: ${JWT_REFRESH_TOKEN_VALIDITY:8640000}
+app:
+  jwks:
+    uri: http://eatzy-auth-service:8081/.well-known/jwks.json

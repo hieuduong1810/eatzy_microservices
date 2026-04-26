@@ -1,11 +1,15 @@
 package com.eatzy.auth.config;
 
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
+import java.io.InputStream;
+import java.security.KeyStore;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
+import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.Resource;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -21,15 +25,43 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtGra
 import org.springframework.security.web.SecurityFilterChain;
 
 import com.eatzy.auth.util.SecurityUtil;
-import com.nimbusds.jose.jwk.source.ImmutableSecret;
-import com.nimbusds.jose.util.Base64;
+import com.nimbusds.jose.jwk.JWKSet;
+import com.nimbusds.jose.jwk.RSAKey;
+import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
+import com.nimbusds.jose.jwk.source.JWKSource;
+import com.nimbusds.jose.proc.SecurityContext;
 
 @Configuration
 @EnableMethodSecurity(securedEnabled = true)
 public class SecurityConfiguration {
 
-    @Value("${foodDelivery.jwt.base64-secret}")
-    private String jwtKey;
+    @Value("${foodDelivery.jwt.keystore-path}")
+    private Resource keyStoreResource;
+
+    @Value("${foodDelivery.jwt.keystore-password}")
+    private String keyStorePassword;
+
+    @Value("${foodDelivery.jwt.key-alias}")
+    private String keyAlias;
+
+    @Bean
+    public RSAKey rsaKey() {
+        try {
+            KeyStore keyStore = KeyStore.getInstance("JKS");
+            try (InputStream is = keyStoreResource.getInputStream()) {
+                keyStore.load(is, keyStorePassword.toCharArray());
+            }
+            RSAPrivateKey privateKey = (RSAPrivateKey) keyStore.getKey(keyAlias, keyStorePassword.toCharArray());
+            RSAPublicKey publicKey = (RSAPublicKey) keyStore.getCertificate(keyAlias).getPublicKey();
+
+            return new RSAKey.Builder(publicKey)
+                    .privateKey(privateKey)
+                    .keyID(UUID.randomUUID().toString())
+                    .build();
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to load RSA Keystore", e);
+        }
+    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -45,6 +77,7 @@ public class SecurityConfiguration {
                 "/api/v1/driver-profiles/count",
                 "/api/v1/users/role/**",
                 "/api/v1/users/email/**",
+                "/.well-known/jwks.json",
                 "/v3/api-docs",
                 "/v3/api-docs/**",
                 "/swagger-ui/**",
@@ -76,26 +109,26 @@ public class SecurityConfiguration {
     }
 
     @Bean
-    public JwtEncoder jwtEncoder() {
-        return new NimbusJwtEncoder(new ImmutableSecret<>(getSecretKey()));
+    public JwtEncoder jwtEncoder(RSAKey rsaKey) {
+        JWKSource<SecurityContext> jwkSource = new ImmutableJWKSet<>(new JWKSet(rsaKey));
+        return new NimbusJwtEncoder(jwkSource);
     }
 
     @Bean
-    public JwtDecoder jwtDecoder() {
-        NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withSecretKey(
-                getSecretKey()).macAlgorithm(SecurityUtil.JWT_ALGORITHM).build();
-        return token -> {
-            try {
-                return jwtDecoder.decode(token);
-            } catch (Exception e) {
-                System.out.println(">>>JWT error: " + e.getMessage());
-                throw e;
-            }
-        };
-    }
-
-    private SecretKey getSecretKey() {
-        byte[] keyBytes = Base64.from(jwtKey).decode();
-        return new SecretKeySpec(keyBytes, 0, keyBytes.length, SecurityUtil.JWT_ALGORITHM.getName());
+    public JwtDecoder jwtDecoder(RSAKey rsaKey) {
+        try {
+            NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withPublicKey(rsaKey.toRSAPublicKey())
+                    .signatureAlgorithm(SecurityUtil.JWT_ALGORITHM).build();
+            return token -> {
+                try {
+                    return jwtDecoder.decode(token);
+                } catch (Exception e) {
+                    System.out.println(">>>JWT error: " + e.getMessage());
+                    throw e;
+                }
+            };
+        } catch (com.nimbusds.jose.JOSEException e) {
+            throw new RuntimeException("Failed to get RSA public key", e);
+        }
     }
 }

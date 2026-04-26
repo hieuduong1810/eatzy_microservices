@@ -27,7 +27,7 @@ import java.util.List;
 
 @Configuration
 @EnableMethodSecurity(securedEnabled = true)
-public class SecurityConfig {
+public class SecurityConfiguration {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -56,8 +56,8 @@ public class SecurityConfig {
         return http.build();
     }
 
-    @Value("${foodDelivery.jwt.base64-secret}")
-    private String jwtKey;
+    @Value("${app.jwks.uri}")
+    private String jwkSetUri;
 
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
@@ -72,8 +72,7 @@ public class SecurityConfig {
 
     @Bean
     public JwtDecoder jwtDecoder() {
-        NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withSecretKey(
-                getSecretKey()).macAlgorithm(MacAlgorithm.HS512).build();
+        NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
         return token -> {
             try {
                 return jwtDecoder.decode(token);
@@ -99,10 +98,5 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
-    }
-
-    private SecretKey getSecretKey() {
-        byte[] keyBytes = Base64.from(jwtKey).decode();
-        return new SecretKeySpec(keyBytes, 0, keyBytes.length, MacAlgorithm.HS512.getName());
     }
 }

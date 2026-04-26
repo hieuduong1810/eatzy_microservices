@@ -21,13 +21,22 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: payment-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
-# JWT
-foodDelivery:
-  jwt:
-    base64-secret: ${JWT_BASE64_SECRET}
-    access-token-validity-in-seconds: ${JWT_ACCESS_TOKEN_VALIDITY:8640000}
-    refresh-token-validity-in-seconds: ${JWT_REFRESH_TOKEN_VALIDITY:8640000}
+app:
+  jwks:
+    uri: http://eatzy-auth-service:8081/.well-known/jwks.json
 
 # Security
 security:
