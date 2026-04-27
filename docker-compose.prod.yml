@@ -3,10 +3,13 @@ version: '3.8'
 x-env-mapping: &env-mapping
   EUREKA_URL: http://eatzy-discovery-server:8761/eureka/
   EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eatzy-discovery-server:8761/eureka/
-  DB_HOST: mariadb
-  DB_PORT: 3306
-  REDIS_HOST: redis
-  REDIS_PORT: 6379
+  DB_HOST: ${DB_HOST}
+  DB_PORT: ${DB_PORT}
+  DB_USERNAME: ${DB_USERNAME}
+  DB_PASSWORD: ${DB_PASSWORD}
+  REDIS_HOST: ${REDIS_HOST}
+  REDIS_PORT: ${REDIS_PORT}
+  REDIS_PASSWORD: ${REDIS_PASSWORD}
   KAFKA_BOOTSTRAP_SERVERS: kafka:29092
   SPRING_CONFIG_IMPORT: optional:configserver:http://eatzy-config-server:8888
   JWT_KEYSTORE_PATH: file:/app/eatzy.jks
@@ -42,40 +45,7 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: DOCKER
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
-  mariadb:
-    image: mariadb:10.11
-    container_name: mariadb
-    restart: always
-    environment:
-      MARIADB_ROOT_PASSWORD: 123456
-    ports:
-      - "3307:3306"
-    healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
-  redis:
-    image: redis:7-alpine
-    container_name: redis
-    restart: always
-    env_file:
-      - .env
-    command: sh -c 'redis-server --requirepass "$${REDIS_PASSWORD:-}"'
-    ports:
-      - "6379:6379"
-
-  adminer:
-    image: adminer:latest
-    container_name: adminer
-    restart: always
-    ports:
-      - "8089:8080"
-    environment:
-      ADMINER_DEFAULT_SERVER: mariadb
-    depends_on:
-      - mariadb
 
   # ==========================================
   # ============ CORE SERVICES ===============
@@ -143,8 +113,6 @@ services:
     depends_on:
       - eatzy-discovery-server
       - eatzy-config-server
-      - mariadb
-      - redis
       - kafka
     env_file:
       - .env
@@ -165,7 +133,6 @@ services:
     depends_on:
       - eatzy-discovery-server
       - eatzy-config-server
-      - mariadb
       - kafka
     env_file:
       - .env
@@ -184,8 +151,6 @@ services:
     depends_on:
       - eatzy-discovery-server
       - eatzy-config-server
-      - mariadb
-      - redis
       - kafka
     env_file:
       - .env
@@ -204,8 +169,6 @@ services:
     depends_on:
       - eatzy-discovery-server
       - eatzy-config-server
-      - mariadb
-      - redis
       - kafka
     env_file:
       - .env
@@ -224,7 +187,6 @@ services:
     depends_on:
       - eatzy-discovery-server
       - eatzy-config-server
-      - mariadb
     env_file:
       - .env
     environment:
@@ -242,7 +204,6 @@ services:
     depends_on:
       - eatzy-discovery-server
       - eatzy-config-server
-      - mariadb
     env_file:
       - .env
     environment:
@@ -260,7 +221,6 @@ services:
     depends_on:
       - eatzy-discovery-server
       - eatzy-config-server
-      - mariadb
       - kafka
     env_file:
       - .env
@@ -279,7 +239,6 @@ services:
     depends_on:
       - eatzy-discovery-server
       - eatzy-config-server
-      - mariadb
     env_file:
       - .env
     environment:

@@ -42,7 +42,7 @@ spring:
 # JWT
 foodDelivery:
   jwt:
-    keystore-path: classpath:eatzy.jks
+    keystore-path: ${JWT_KEYSTORE_PATH:classpath:eatzy.jks}
     keystore-password: ${JWT_KEYSTORE_PASSWORD:123456}
     key-alias: eatzy
     access-token-validity-in-seconds: ${JWT_ACCESS_TOKEN_VALIDITY:8640000}
