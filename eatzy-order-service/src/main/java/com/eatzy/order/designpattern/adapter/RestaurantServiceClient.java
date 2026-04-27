@@ -20,5 +20,8 @@ public interface RestaurantServiceClient {
 
     @GetMapping("/api/v1/menu-options/{menuOptionId}")
     Map<String, Object> getMenuOptionById(@PathVariable("menuOptionId") Long menuOptionId);
+
+    @GetMapping("/api/v1/restaurants/my-restaurant")
+    Map<String, Object> getMyRestaurant();
 }
 

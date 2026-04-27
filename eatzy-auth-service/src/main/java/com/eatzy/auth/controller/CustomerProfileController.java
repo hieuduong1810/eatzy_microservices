@@ -30,7 +30,8 @@ public class CustomerProfileController {
     private final CustomerProfileService customerProfileService;
     private final CustomerProfileMapper customerProfileMapper;
 
-    public CustomerProfileController(CustomerProfileService customerProfileService, CustomerProfileMapper customerProfileMapper) {
+    public CustomerProfileController(CustomerProfileService customerProfileService,
+            CustomerProfileMapper customerProfileMapper) {
         this.customerProfileService = customerProfileService;
         this.customerProfileMapper = customerProfileMapper;
     }

@@ -160,6 +160,24 @@ public class OrderService {
                 .map(orderMapper::toResOrderDTO).collect(Collectors.toList());
     }
 
+    public ResultPaginationDTO getOrdersByCurrentOwnerRestaurant(Specification<Order> spec, Pageable pageable) throws IdInvalidException {
+        Map<String, Object> myRestaurant = restaurantServiceClient.getMyRestaurant();
+        if (myRestaurant == null || !myRestaurant.containsKey("id")) {
+            throw new IdInvalidException("Owner does not have a restaurant");
+        }
+        Long restaurantId = Long.valueOf(myRestaurant.get("id").toString());
+        return getOrdersDTOByRestaurantIdWithSpec(restaurantId, spec, pageable);
+    }
+
+    public List<ResOrderDTO> getOrdersByCurrentOwnerRestaurantAndStatus(String status) throws IdInvalidException {
+        Map<String, Object> myRestaurant = restaurantServiceClient.getMyRestaurant();
+        if (myRestaurant == null || !myRestaurant.containsKey("id")) {
+            throw new IdInvalidException("Owner does not have a restaurant");
+        }
+        Long restaurantId = Long.valueOf(myRestaurant.get("id").toString());
+        return getOrdersDTOByRestaurantIdAndStatus(restaurantId, status);
+    }
+
     public ResDeliveryFeeDTO getDeliveryFee(Long restaurantId, BigDecimal deliveryLatitude,
             BigDecimal deliveryLongitude) throws IdInvalidException {
         // Get restaurant info via Adapter

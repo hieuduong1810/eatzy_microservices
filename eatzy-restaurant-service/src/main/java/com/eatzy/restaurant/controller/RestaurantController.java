@@ -81,7 +81,8 @@ public class RestaurantController {
     // ==================== DESIGN PATTERN APIs ====================
 
     /**
-     * ★ OBSERVER PATTERN: Duyet nha hang -> phat event -> Listener gui thong bao tu dong.
+     * ★ OBSERVER PATTERN: Duyet nha hang -> phat event -> Listener gui thong bao tu
+     * dong.
      */
     @PostMapping("/restaurants/{id}/approve")
     @ApiMessage("Approve restaurant (Observer Pattern)")
@@ -144,7 +145,8 @@ public class RestaurantController {
 
     @GetMapping("/restaurants/{id}/menu")
     @ApiMessage("Get restaurant menu")
-    public ResponseEntity<com.eatzy.restaurant.domain.res.ResRestaurantMenuDTO> getRestaurantMenu(@PathVariable("id") Long id) throws IdInvalidException {
+    public ResponseEntity<com.eatzy.restaurant.domain.res.ResRestaurantMenuDTO> getRestaurantMenu(
+            @PathVariable("id") Long id) throws IdInvalidException {
         Restaurant restaurant = restaurantService.getRestaurantById(id);
         if (restaurant == null) {
             throw new IdInvalidException("Restaurant not found with id: " + id);
@@ -154,12 +156,14 @@ public class RestaurantController {
 
     @GetMapping("/restaurants/slug/{slug}")
     @ApiMessage("Get restaurant by slug")
-    public ResponseEntity<ResRestaurantDTO> getRestaurantBySlug(@PathVariable("slug") String slug) throws IdInvalidException {
+    public ResponseEntity<ResRestaurantDTO> getRestaurantBySlug(@PathVariable("slug") String slug)
+            throws IdInvalidException {
         return ResponseEntity.ok(restaurantService.getRestaurantDTOBySlug(slug));
     }
 
     // ==================== OWNER APIs ====================
-    // Note: In real app, consider passing user ID via a resolved parameter instead of direct static call, but following plan.
+    // Note: In real app, consider passing user ID via a resolved parameter instead
+    // of direct static call, but following plan.
 
     @GetMapping("/restaurants/my-restaurant")
     @ApiMessage("Get my restaurant")
@@ -170,7 +174,8 @@ public class RestaurantController {
 
     @PutMapping("/restaurants/my-restaurant")
     @ApiMessage("Update my restaurant")
-    public ResponseEntity<ResRestaurantDTO> updateMyRestaurant(@RequestBody Restaurant restaurantData) throws IdInvalidException {
+    public ResponseEntity<ResRestaurantDTO> updateMyRestaurant(@RequestBody Restaurant restaurantData)
+            throws IdInvalidException {
         Long ownerId = com.eatzy.common.util.SecurityUtils.getCurrentUserId();
         Restaurant myRestaurant = restaurantService.getRestaurantByOwnerId(ownerId);
         if (myRestaurant == null) {
@@ -182,7 +187,8 @@ public class RestaurantController {
 
     @GetMapping("/restaurants/my-restaurant/menu")
     @ApiMessage("Get my restaurant menu")
-    public ResponseEntity<com.eatzy.restaurant.domain.res.ResRestaurantMenuDTO> getMyRestaurantMenu() throws IdInvalidException {
+    public ResponseEntity<com.eatzy.restaurant.domain.res.ResRestaurantMenuDTO> getMyRestaurantMenu()
+            throws IdInvalidException {
         Long ownerId = com.eatzy.common.util.SecurityUtils.getCurrentUserId();
         Restaurant myRestaurant = restaurantService.getRestaurantByOwnerId(ownerId);
         if (myRestaurant == null) {
@@ -199,7 +205,8 @@ public class RestaurantController {
         if (myRestaurant == null) {
             throw new IdInvalidException("Owner does not have a restaurant");
         }
-        return ResponseEntity.ok(java.util.Map.of("status", myRestaurant.getStatus() != null ? myRestaurant.getStatus() : "UNKNOWN"));
+        return ResponseEntity.ok(
+                java.util.Map.of("status", myRestaurant.getStatus() != null ? myRestaurant.getStatus() : "UNKNOWN"));
     }
 
     @PostMapping("/restaurants/open")

@@ -114,6 +114,32 @@ public class OrderController {
         return ResponseEntity.ok(orderService.getOrdersDTOByRestaurantIdAndStatus(restaurantId, status));
     }
 
+    @GetMapping("/orders/my-restaurant")
+    public ResponseEntity<ResultPaginationDTO> getOrdersByCurrentOwnerRestaurant(
+            @Filter Specification<Order> spec, Pageable pageable) throws IdInvalidException {
+        return ResponseEntity.ok(orderService.getOrdersByCurrentOwnerRestaurant(spec, pageable));
+    }
+
+    @GetMapping("/orders/my-customer")
+    public ResponseEntity<ResultPaginationDTO> getMyCustomerOrders(
+            @Filter Specification<Order> spec, Pageable pageable) throws IdInvalidException {
+        Long customerId = SecurityUtils.getCurrentUserId();
+        return ResponseEntity.ok(orderService.getOrdersDTOByCustomerIdWithSpec(customerId, spec, pageable));
+    }
+
+    @GetMapping("/orders/my-driver")
+    public ResponseEntity<ResultPaginationDTO> getMyDriverOrders(
+            @Filter Specification<Order> spec, Pageable pageable) throws IdInvalidException {
+        Long driverId = SecurityUtils.getCurrentUserId();
+        return ResponseEntity.ok(orderService.getOrdersDTOByDriverIdWithSpec(driverId, spec, pageable));
+    }
+
+    @GetMapping("/orders/my-restaurant/status/{status}")
+    public ResponseEntity<List<ResOrderDTO>> getOrdersByCurrentOwnerRestaurantAndStatus(
+            @PathVariable("status") String status) throws IdInvalidException {
+        return ResponseEntity.ok(orderService.getOrdersByCurrentOwnerRestaurantAndStatus(status));
+    }
+
     // ==================== ORDER LIFECYCLE (State Pattern) ====================
 
     @PatchMapping("/orders/{id}/restaurant/accept")
