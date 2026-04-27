@@ -80,6 +80,7 @@ services:
   # ============ CORE SERVICES ===============
   # ==========================================
   eatzy-discovery-server:
+    image: ${DOCKERHUB_USER:-hieuduong1810}/eatzy-discovery-server:latest
     build:
       context: .
       dockerfile: eatzy-discovery-server/Dockerfile
@@ -94,6 +95,7 @@ services:
       retries: 5
 
   eatzy-config-server:
+    image: ${DOCKERHUB_USER:-hieuduong1810}/eatzy-config-server:latest
     build:
       context: .
       dockerfile: eatzy-config-server/Dockerfile
@@ -112,6 +114,7 @@ services:
   # ============ BUSINESS SERVICES ===========
   # ==========================================
   eatzy-api-gateway:
+    image: ${DOCKERHUB_USER:-hieuduong1810}/eatzy-api-gateway:latest
     build:
       context: .
       dockerfile: eatzy-api-gateway/Dockerfile
@@ -128,6 +131,7 @@ services:
       <<: *env-mapping
 
   eatzy-auth-service:
+    image: ${DOCKERHUB_USER:-hieuduong1810}/eatzy-auth-service:latest
     build:
       context: .
       dockerfile: eatzy-auth-service/Dockerfile
@@ -147,6 +151,7 @@ services:
       <<: *env-mapping
 
   eatzy-restaurant-service:
+    image: ${DOCKERHUB_USER:-hieuduong1810}/eatzy-restaurant-service:latest
     build:
       context: .
       dockerfile: eatzy-restaurant-service/Dockerfile
@@ -165,6 +170,7 @@ services:
       <<: *env-mapping
 
   eatzy-order-service:
+    image: ${DOCKERHUB_USER:-hieuduong1810}/eatzy-order-service:latest
     build:
       context: .
       dockerfile: eatzy-order-service/Dockerfile
@@ -184,6 +190,7 @@ services:
       <<: *env-mapping
 
   eatzy-communication-service:
+    image: ${DOCKERHUB_USER:-hieuduong1810}/eatzy-communication-service:latest
     build:
       context: .
       dockerfile: eatzy-communication-service/Dockerfile
@@ -203,6 +210,7 @@ services:
       <<: *env-mapping
 
   eatzy-cart-service:
+    image: ${DOCKERHUB_USER:-hieuduong1810}/eatzy-cart-service:latest
     build:
       context: .
       dockerfile: eatzy-cart-service/Dockerfile
@@ -220,6 +228,7 @@ services:
       <<: *env-mapping
 
   eatzy-payment-service:
+    image: ${DOCKERHUB_USER:-hieuduong1810}/eatzy-payment-service:latest
     build:
       context: .
       dockerfile: eatzy-payment-service/Dockerfile
@@ -237,6 +246,7 @@ services:
       <<: *env-mapping
 
   eatzy-interaction-service:
+    image: ${DOCKERHUB_USER:-hieuduong1810}/eatzy-interaction-service:latest
     build:
       context: .
       dockerfile: eatzy-interaction-service/Dockerfile
@@ -255,6 +265,7 @@ services:
       <<: *env-mapping
 
   eatzy-system-config-service:
+    image: ${DOCKERHUB_USER:-hieuduong1810}/eatzy-system-config-service:latest
     build:
       context: .
       dockerfile: eatzy-system-config-service/Dockerfile
