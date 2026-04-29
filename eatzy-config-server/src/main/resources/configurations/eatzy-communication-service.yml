@@ -21,6 +21,9 @@ spring:
     show-sql: true
   # Redis
   data:
+    web:
+      pageable:
+        one-indexed-parameters: true
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}

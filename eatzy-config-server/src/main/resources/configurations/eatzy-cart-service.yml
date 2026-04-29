@@ -14,6 +14,10 @@ spring:
     url: jdbc:mariadb://${DB_HOST:localhost}:${DB_PORT:3307}/eatzy_cart_db?createDatabaseIfNotExist=true
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:123456}
+  data:
+    web:
+      pageable:
+        one-indexed-parameters: true
   jpa:
     hibernate:
       ddl-auto: update
