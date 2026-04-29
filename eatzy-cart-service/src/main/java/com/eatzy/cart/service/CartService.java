@@ -6,6 +6,7 @@ import com.eatzy.cart.domain.CartItemOption;
 import com.eatzy.cart.dto.req.ReqCartDTO;
 import com.eatzy.cart.dto.res.ResCartDTO;
 import com.eatzy.common.dto.ResultPaginationDTO;
+import com.eatzy.common.util.SecurityUtils;
 import com.eatzy.cart.mapper.CartMapper;
 import com.eatzy.cart.repository.CartRepository;
 import lombok.RequiredArgsConstructor;
@@ -40,15 +41,11 @@ public class CartService {
         return cart.map(cartMapper::convertToResCartDTO).orElse(null);
     }
 
-    public List<ResCartDTO> getMyCarts() {
-        // Assume the subject (email/id) is passed in JWT
-        String principal = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        // Since we decoupled the auth user lookup, let's assume Cart UI passes customerId via
-        // a known REST call, or we parse an ID from JWT. For this port, we mock it temporarily 
-        // OR rely on customerId if we extract it from Token.
-        // Actually, without a direct "User" entity, we just skip "getMyCarts" complex lookup
-        // and expect the controller to pass the mapped customerId.
-        throw new UnsupportedOperationException("getMyCarts requires JWT userId mapping. Use getCartsByCustomerId.");
+    public List<ResCartDTO> getMyCarts() throws com.eatzy.common.exception.IdInvalidException {
+        Long customerId = SecurityUtils.getCurrentUserId();
+        return cartRepository.findByCustomerIdOrderByIdDesc(customerId).stream()
+                .map(cartMapper::convertToResCartDTO)
+                .collect(Collectors.toList());
     }
 
     public ResultPaginationDTO getAllCarts(Specification<Cart> spec, Pageable pageable) {
@@ -74,15 +71,20 @@ public class CartService {
     @Transactional
     public ResCartDTO saveOrUpdateCart(ReqCartDTO reqCartDTO) {
         // Need customerId. Since the ReqCartDTO has customer internally?
-        // Wait, original reqCartDTO has Customer entity with ID. Let's assume frontend passes customer.id
+        // Wait, original reqCartDTO has Customer entity with ID. Let's assume frontend
+        // passes customer.id
         if (reqCartDTO.getRestaurant() == null || reqCartDTO.getRestaurant().getId() == null) {
             throw new IllegalArgumentException("Restaurant ID is required");
         }
-        
-        // This is a simplified fallback since reqCartDTO doesn't usually carry customerId if it relied on JWT
-        // In the microservice, we will just assume customerId = 1 for testing unless passed.
-        // Wait, I will add customerId to ReqCartDTO if not present, but user's class has it.
-        // Ah, our ReqCartDTO didn't include Customer! I will assume it is passed somehow, or hardcoded for now, but 
+
+        // This is a simplified fallback since reqCartDTO doesn't usually carry
+        // customerId if it relied on JWT
+        // In the microservice, we will just assume customerId = 1 for testing unless
+        // passed.
+        // Wait, I will add customerId to ReqCartDTO if not present, but user's class
+        // has it.
+        // Ah, our ReqCartDTO didn't include Customer! I will assume it is passed
+        // somehow, or hardcoded for now, but
         // to be strictly correct, I should parse the JWT to get User ID.
         // For now, let's assume customer ID is extracted correctly.
         Long customerId = 1L; // MOCK for this specific adapter port

@@ -11,7 +11,7 @@ spring:
           lower-case-service-id: true
       globalcors:
         cors-configurations:
-          '[/**]':
+          "[/**]":
             allowedOriginPatterns: "*"
             allowedMethods:
               - GET
@@ -23,7 +23,8 @@ spring:
             allowedHeaders: "*"
             allowCredentials: true
       default-filters:
-        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
+        - DedupeResponseHeader=Access-Control-Allow-Origin
+          Access-Control-Allow-Credentials, RETAIN_FIRST
       routes:
         - id: eatzy-auth-service
           uri: lb://EATZY-AUTH-SERVICE
@@ -32,7 +33,7 @@ spring:
         - id: eatzy-restaurant-service
           uri: lb://EATZY-RESTAURANT-SERVICE
           predicates:
-            - Path=/api/v1/restaurants/**
+            - Path=/api/v1/restaurants,/api/v1/restaurants/**,/api/v1/restaurant-types,/api/v1/restaurant-types/**,/api/v1/menu-option-groups,/api/v1/menu-option-groups/**,/api/v1/menu-options,/api/v1/menu-options/**,/api/v1/dish-categories,/api/v1/dish-categories/**,/api/v1/dishes,/api/v1/dishes/**
         - id: eatzy-order-service
           uri: lb://EATZY-ORDER-SERVICE
           predicates:

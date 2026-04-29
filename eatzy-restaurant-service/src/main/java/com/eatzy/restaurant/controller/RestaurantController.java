@@ -114,14 +114,14 @@ public class RestaurantController {
 
     /**
      * ★ ADAPTER PATTERN: Tinh khoang cach tu nguoi dung den nha hang.
-     * VD: /api/v1/restaurants/1/distance?lat=10.762&lng=106.660
+     * VD: /api/v1/restaurants/1/distance?latitude=10.762&longitude=106.660
      */
     @GetMapping("/restaurants/{id}/distance")
     @ApiMessage("Calculate distance to restaurant (Adapter Pattern)")
     public ResponseEntity<java.util.Map<String, Object>> calculateDistance(
             @PathVariable("id") Long id,
-            @RequestParam("lat") BigDecimal lat,
-            @RequestParam("lng") BigDecimal lng)
+            @RequestParam("latitude") BigDecimal lat,
+            @RequestParam("longitude") BigDecimal lng)
             throws IdInvalidException {
         BigDecimal distance = restaurantService.calculateDistanceToRestaurant(id, lat, lng);
         java.util.Map<String, Object> response = new java.util.HashMap<>();
@@ -136,8 +136,8 @@ public class RestaurantController {
     @GetMapping("/restaurants/nearby")
     @ApiMessage("Get nearby restaurants with scores")
     public ResponseEntity<ResultPaginationDTO> getNearbyRestaurants(
-            @RequestParam(value = "lat", required = false) BigDecimal lat,
-            @RequestParam(value = "lng", required = false) BigDecimal lng,
+            @RequestParam(value = "latitude", required = false) BigDecimal lat,
+            @RequestParam(value = "longitude", required = false) BigDecimal lng,
             @RequestParam(value = "keyword", required = false) String keyword,
             @Filter Specification<Restaurant> spec, Pageable pageable) {
         return ResponseEntity.ok(restaurantService.getNearbyRestaurants(lat, lng, keyword, spec, pageable));

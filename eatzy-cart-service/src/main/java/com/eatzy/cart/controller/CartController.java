@@ -5,6 +5,7 @@ import com.eatzy.cart.dto.req.ReqCartDTO;
 import com.eatzy.cart.dto.res.ResCartDTO;
 import com.eatzy.common.dto.ResultPaginationDTO;
 import com.eatzy.cart.service.CartService;
+import com.eatzy.common.exception.IdInvalidException;
 import com.turkraft.springfilter.boot.Filter;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +42,12 @@ public class CartController {
     @GetMapping("/carts/customer/{customerId}")
     public ResponseEntity<List<ResCartDTO>> getCartsByCustomerId(@PathVariable("customerId") Long customerId) {
         List<ResCartDTO> carts = cartService.getCartsByCustomerId(customerId);
+        return ResponseEntity.ok(carts);
+    }
+
+    @GetMapping("/carts/my-carts")
+    public ResponseEntity<List<ResCartDTO>> getMyCart() throws IdInvalidException {
+        List<ResCartDTO> carts = cartService.getMyCarts();
         return ResponseEntity.ok(carts);
     }
 
