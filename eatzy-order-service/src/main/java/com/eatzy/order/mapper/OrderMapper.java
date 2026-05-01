@@ -144,6 +144,8 @@ public class OrderMapper {
             try {
                 Map<String, Object> driverData = authServiceClient.getUserById(order.getDriverId());
                 Map<String, Object> driverProfile = authServiceClient.getDriverProfileByUserId(order.getDriverId());
+                log.info("[OrderMapper] Enrich driver for orderId={}, driverId={}, driverData={}, driverProfile={}",
+                        order.getId(), order.getDriverId(), driverData, driverProfile);
                 if (driverData != null) {
                     ResOrderDTO.Driver driver = new ResOrderDTO.Driver();
                     driver.setId(order.getDriverId());
@@ -151,12 +153,36 @@ public class OrderMapper {
                     driver.setEmail(getStringValue(driverData, "email"));
                     driver.setPhoneNumber(getStringValue(driverData, "phoneNumber"));
                     if (driverProfile != null) {
-                        driver.setVehicleType(getStringValue(driverProfile, "vehicleType"));
+                        Map<String, Object> driverProfileUser = getMapValue(driverProfile, "user");
+                        driver.setVehicleType(getStringValue(driverProfile, "vehicle_type"));
+                        if (driver.getVehicleType() == null) {
+                            driver.setVehicleType(getStringValue(driverProfile, "vehicleType"));
+                        }
                         driver.setAverageRating(getStringValue(driverProfile, "averageRating"));
                         driver.setCompletedTrips(getStringValue(driverProfile, "completedTrips"));
-                        driver.setVehicleLicensePlate(getStringValue(driverProfile, "vehicleLicensePlate"));
+                        driver.setVehicleLicensePlate(getStringValue(driverProfile, "vehicle_license_plate"));
+                        if (driver.getVehicleLicensePlate() == null) {
+                            driver.setVehicleLicensePlate(getStringValue(driverProfile, "vehicleLicensePlate"));
+                        }
                         driver.setVehicleDetails(getStringValue(driverProfile, "vehicleDetails"));
+                        if (driver.getPhoneNumber() == null && driverProfileUser != null) {
+                            driver.setPhoneNumber(getStringValue(driverProfileUser, "phoneNumber"));
+                            if (driver.getPhoneNumber() == null) {
+                                driver.setPhoneNumber(getStringValue(driverProfileUser, "phone_number"));
+                            }
+                        }
                     }
+                    log.info("[OrderMapper] Mapped driver for orderId={}, driverId={}, name={}, email={}, phoneNumber={}, vehicleType={}, vehicleDetails={}, averageRating={}, completedTrips={}, vehicleLicensePlate={}",
+                            order.getId(),
+                            order.getDriverId(),
+                            driver.getName(),
+                            driver.getEmail(),
+                            driver.getPhoneNumber(),
+                            driver.getVehicleType(),
+                            driver.getVehicleDetails(),
+                            driver.getAverageRating(),
+                            driver.getCompletedTrips(),
+                            driver.getVehicleLicensePlate());
                     dto.setDriver(driver);
                 }
             } catch (Exception e) {
@@ -250,8 +276,23 @@ public class OrderMapper {
     }
 
     private String getStringValue(Map<String, Object> map, String key) {
+        if (map == null) {
+            return null;
+        }
         Object value = map.get(key);
         return value != null ? value.toString() : null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> getMapValue(Map<String, Object> map, String key) {
+        if (map == null) {
+            return null;
+        }
+        Object value = map.get(key);
+        if (value instanceof Map<?, ?> nestedMap) {
+            return (Map<String, Object>) nestedMap;
+        }
+        return null;
     }
 
     private BigDecimal getBigDecimalValue(Map<String, Object> map, String key) {
