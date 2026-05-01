@@ -27,8 +27,8 @@ public class FavoriteService {
     private final RestaurantServiceClient restaurantServiceClient;
 
     public FavoriteService(FavoriteRepository favoriteRepository,
-                           AuthServiceClient authServiceClient,
-                           RestaurantServiceClient restaurantServiceClient) {
+            AuthServiceClient authServiceClient,
+            RestaurantServiceClient restaurantServiceClient) {
         this.favoriteRepository = favoriteRepository;
         this.authServiceClient = authServiceClient;
         this.restaurantServiceClient = restaurantServiceClient;
@@ -43,9 +43,8 @@ public class FavoriteService {
 
         // Fetch User
         try {
-            Map<String, Object> userResponse = authServiceClient.getUserById(favorite.getCustomerId());
-            if (userResponse != null && userResponse.get("result") != null) {
-                Map<String, Object> userMap = (Map<String, Object>) userResponse.get("result");
+            Map<String, Object> userMap = authServiceClient.getUserById(favorite.getCustomerId());
+            if (userMap != null) {
                 ResFavouriteDTO.User customerDTO = new ResFavouriteDTO.User();
                 customerDTO.setId(favorite.getCustomerId());
                 customerDTO.setName((String) userMap.get("name"));
@@ -57,9 +56,9 @@ public class FavoriteService {
 
         // Fetch Restaurant
         try {
-            Map<String, Object> restaurantResponse = restaurantServiceClient.getRestaurantById(favorite.getRestaurantId());
-            if (restaurantResponse != null && restaurantResponse.get("result") != null) {
-                Map<String, Object> restMap = (Map<String, Object>) restaurantResponse.get("result");
+            Map<String, Object> restMap = restaurantServiceClient
+                    .getRestaurantById(favorite.getRestaurantId());
+            if (restMap != null) {
                 ResFavouriteDTO.Restaurant restaurantDTO = new ResFavouriteDTO.Restaurant();
                 restaurantDTO.setId(favorite.getRestaurantId());
                 restaurantDTO.setName((String) restMap.get("name"));
@@ -108,11 +107,12 @@ public class FavoriteService {
 
         // Check if restaurant exists
         try {
-            Map<String, Object> restaurantResponse = restaurantServiceClient.getRestaurantById(restaurantId);
-            if (restaurantResponse == null || restaurantResponse.get("result") == null) {
-                throw new IdInvalidException("Restaurant not found with id: " + restaurantId);
-            }
+            // The Feign client handles the 404 case by throwing FeignException.NotFound.
+            // We just need to call it. If it completes without an exception, the restaurant
+            // exists.
+            restaurantServiceClient.getRestaurantById(restaurantId);
         } catch (FeignException.NotFound e) {
+            // If the client throws NotFound, it means the restaurant doesn't exist.
             throw new IdInvalidException("Restaurant not found with id: " + restaurantId);
         }
 

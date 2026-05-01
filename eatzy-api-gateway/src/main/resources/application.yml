@@ -71,6 +71,7 @@ springdoc:
     disable-swagger-default-url: true
     urls-primary-name: Auth Service
     path: /swagger-ui.html
+    persist-authorization: true
     urls:
       - name: Auth Service
         url: /eatzy-auth-service/v3/api-docs

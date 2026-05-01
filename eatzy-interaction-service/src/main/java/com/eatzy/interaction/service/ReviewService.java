@@ -5,6 +5,7 @@ import com.eatzy.common.exception.IdInvalidException;
 import com.eatzy.common.util.SecurityUtils;
 import com.eatzy.interaction.designpattern.adapter.AuthServiceClient;
 import com.eatzy.interaction.designpattern.adapter.OrderServiceClient;
+import com.eatzy.interaction.designpattern.adapter.RestaurantServiceClient;
 import com.eatzy.interaction.designpattern.event.KafkaProducerService;
 import com.eatzy.interaction.domain.Review;
 import com.eatzy.interaction.dto.request.ReqReviewCreateDTO;
@@ -31,17 +32,20 @@ public class ReviewService {
     private final ReviewRepository reviewRepository;
     private final AuthServiceClient authServiceClient;
     private final OrderServiceClient orderServiceClient;
+    private final RestaurantServiceClient restaurantServiceClient;
     private final UserScoringService userScoringService;
     private final KafkaProducerService kafkaProducerService;
 
     public ReviewService(ReviewRepository reviewRepository,
             AuthServiceClient authServiceClient,
             OrderServiceClient orderServiceClient,
+            RestaurantServiceClient restaurantServiceClient,
             UserScoringService userScoringService,
             KafkaProducerService kafkaProducerService) {
         this.reviewRepository = reviewRepository;
         this.authServiceClient = authServiceClient;
         this.orderServiceClient = orderServiceClient;
+        this.restaurantServiceClient = restaurantServiceClient;
         this.userScoringService = userScoringService;
         this.kafkaProducerService = kafkaProducerService;
     }
@@ -118,17 +122,12 @@ public class ReviewService {
 
     public ResultPaginationDTO getReviewsByMyRestaurant(Specification<Review> spec, Pageable pageable)
             throws IdInvalidException {
-        Long userId = SecurityUtils.getCurrentUserId();
-
-        // Get current user's restaurant name from auth service
+        // Get current user's restaurant name from restaurant service
         String restaurantName = null;
         try {
-            Map<String, Object> result = extractData(authServiceClient.getUserById(userId));
-            if (result != null && result.containsKey("restaurant")) {
-                Map<String, Object> restaurant = (Map<String, Object>) result.get("restaurant");
-                if (restaurant != null) {
-                    restaurantName = (String) restaurant.get("name");
-                }
+            Map<String, Object> result = extractData(restaurantServiceClient.getMyRestaurant());
+            if (result != null && result.containsKey("name")) {
+                restaurantName = (String) result.get("name");
             }
         } catch (FeignException e) {
             // Ignore and proceed

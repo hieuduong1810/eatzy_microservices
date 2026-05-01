@@ -14,4 +14,7 @@ public interface RestaurantServiceClient {
 
     @GetMapping("/api/v1/restaurants/name/{name}")
     Map<String, Object> getRestaurantByName(@PathVariable("name") String name);
+
+    @GetMapping("/api/v1/restaurants/my-restaurant")
+    Map<String, Object> getMyRestaurant();
 }
