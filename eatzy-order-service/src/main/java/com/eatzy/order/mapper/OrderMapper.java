@@ -156,9 +156,6 @@ public class OrderMapper {
                         driver.setCompletedTrips(getStringValue(driverProfile, "completedTrips"));
                         driver.setVehicleLicensePlate(getStringValue(driverProfile, "vehicleLicensePlate"));
                         driver.setVehicleDetails(getStringValue(driverProfile, "vehicleDetails"));
-                        driver.setVehicleType(getStringValue(driverProfile, "vehicleType"));
-                        driver.setVehicleLicensePlate(getStringValue(driverProfile, "vehicleLicensePlate"));
-                        driver.setPhoneNumber(getStringValue(driverProfile, "phoneNumber"));
                     }
                     dto.setDriver(driver);
                 }

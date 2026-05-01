@@ -10,8 +10,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.List;
 
 @RestController
@@ -37,61 +35,51 @@ public class RestaurantReportController {
 
     @GetMapping("/full")
     public ResponseEntity<FullReportDTO> getFullReport(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) throws IdInvalidException {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant endDate)
+            throws IdInvalidException {
 
         Long restaurantId = getMyRestaurantId();
-        Instant start = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant();
-        Instant end = endDate.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant();
-
-        return ResponseEntity.ok(reportService.getFullReport(restaurantId, start, end));
+        return ResponseEntity.ok(reportService.getFullReport(restaurantId, startDate, endDate));
     }
 
     @GetMapping("/revenue")
     public ResponseEntity<List<RevenueReportItemDTO>> getRevenueReport(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) throws IdInvalidException {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant endDate)
+            throws IdInvalidException {
 
         Long restaurantId = getMyRestaurantId();
-        Instant start = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant();
-        Instant end = endDate.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant();
-
-        return ResponseEntity.ok(reportService.getRevenueReport(restaurantId, start, end));
+        return ResponseEntity.ok(reportService.getRevenueReport(restaurantId, startDate, endDate));
     }
 
     @GetMapping("/orders")
     public ResponseEntity<List<OrderReportItemDTO>> getOrdersReport(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) throws IdInvalidException {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant endDate)
+            throws IdInvalidException {
 
         Long restaurantId = getMyRestaurantId();
-        Instant start = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant();
-        Instant end = endDate.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant();
-
-        return ResponseEntity.ok(reportService.getOrdersReport(restaurantId, start, end));
+        return ResponseEntity.ok(reportService.getOrdersReport(restaurantId, startDate, endDate));
     }
 
     @GetMapping("/menu")
     public ResponseEntity<MenuSummaryDTO> getMenuReport(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) throws IdInvalidException {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant endDate)
+            throws IdInvalidException {
 
         Long restaurantId = getMyRestaurantId();
-        Instant start = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant();
-        Instant end = endDate.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant();
-
-        return ResponseEntity.ok(reportService.getMenuReport(restaurantId, start, end));
+        return ResponseEntity.ok(reportService.getMenuReport(restaurantId, startDate, endDate));
     }
 
     @GetMapping("/reviews")
     public ResponseEntity<ReviewSummaryDTO> getReviewReport(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) throws IdInvalidException {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant endDate)
+            throws IdInvalidException {
 
         Long restaurantId = getMyRestaurantId();
-        Instant start = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant();
-        Instant end = endDate.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant();
-
-        return ResponseEntity.ok(reportService.getReviewReport(restaurantId, start, end));
+        return ResponseEntity.ok(reportService.getReviewReport(restaurantId, startDate, endDate));
     }
 }
