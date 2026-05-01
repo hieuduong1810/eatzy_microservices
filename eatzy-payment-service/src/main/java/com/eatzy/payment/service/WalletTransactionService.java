@@ -2,6 +2,7 @@ package com.eatzy.payment.service;
 
 import com.eatzy.common.dto.ResultPaginationDTO;
 import com.eatzy.common.exception.IdInvalidException;
+import com.eatzy.common.util.SecurityUtils;
 import com.eatzy.payment.designpattern.adapter.AuthServiceClient;
 import com.eatzy.payment.designpattern.adapter.OrderServiceClient;
 import com.eatzy.payment.domain.Wallet;
@@ -226,5 +227,26 @@ public class WalletTransactionService {
         result.setMeta(meta);
         result.setResult(page.getContent().stream().map(this::convertToDTO).collect(Collectors.toList()));
         return result;
+    }
+
+    /**
+     * Lấy danh sách giao dịch của current user (dựa vào userId từ JWT)
+     */
+    public ResultPaginationDTO getMyTransactions(Pageable pageable) throws IdInvalidException {
+        Long userId = SecurityUtils.getCurrentUserId();
+        Wallet wallet = walletService.getWalletByUserId(userId);
+        if (wallet == null) {
+            // Nếu chưa có wallet thì trả về empty
+            ResultPaginationDTO result = new ResultPaginationDTO();
+            ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta();
+            meta.setPage(pageable.getPageNumber() + 1);
+            meta.setPageSize(pageable.getPageSize());
+            meta.setTotal(0L);
+            meta.setPages(0);
+            result.setMeta(meta);
+            result.setResult(List.of());
+            return result;
+        }
+        return getWalletTransactionsByWalletIdWithSpec(wallet.getId(), null, pageable);
     }
 }

@@ -35,10 +35,10 @@ public class ReviewService {
     private final KafkaProducerService kafkaProducerService;
 
     public ReviewService(ReviewRepository reviewRepository,
-                         AuthServiceClient authServiceClient,
-                         OrderServiceClient orderServiceClient,
-                         UserScoringService userScoringService,
-                         KafkaProducerService kafkaProducerService) {
+            AuthServiceClient authServiceClient,
+            OrderServiceClient orderServiceClient,
+            UserScoringService userScoringService,
+            KafkaProducerService kafkaProducerService) {
         this.reviewRepository = reviewRepository;
         this.authServiceClient = authServiceClient;
         this.orderServiceClient = orderServiceClient;
@@ -47,7 +47,8 @@ public class ReviewService {
     }
 
     private Map<String, Object> extractData(Map<String, Object> response) {
-        if (response == null) return null;
+        if (response == null)
+            return null;
         if (response.containsKey("result") && response.get("result") instanceof Map) {
             return (Map<String, Object>) response.get("result");
         } else if (response.containsKey("data") && response.get("data") instanceof Map) {
@@ -115,10 +116,58 @@ public class ReviewService {
                 .toList();
     }
 
+    public ResultPaginationDTO getReviewsByMyRestaurant(Specification<Review> spec, Pageable pageable)
+            throws IdInvalidException {
+        Long userId = SecurityUtils.getCurrentUserId();
+
+        // Get current user's restaurant name from auth service
+        String restaurantName = null;
+        try {
+            Map<String, Object> result = extractData(authServiceClient.getUserById(userId));
+            if (result != null && result.containsKey("restaurant")) {
+                Map<String, Object> restaurant = (Map<String, Object>) result.get("restaurant");
+                if (restaurant != null) {
+                    restaurantName = (String) restaurant.get("name");
+                }
+            }
+        } catch (FeignException e) {
+            // Ignore and proceed
+        }
+
+        if (restaurantName == null) {
+            throw new IdInvalidException("User does not have a restaurant");
+        }
+
+        // Build specification to get reviews for this restaurant
+        final String finalRestaurantName = restaurantName;
+        Specification<Review> finalSpec = (root, query, cb) -> cb.and(
+                cb.equal(root.get("reviewTarget"), "restaurant"),
+                cb.equal(root.get("targetName"), finalRestaurantName));
+
+        if (spec != null) {
+            finalSpec = finalSpec.and(spec);
+        }
+
+        Page<Review> page = reviewRepository.findAll(finalSpec, pageable);
+
+        ResultPaginationDTO result = new ResultPaginationDTO();
+        ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta();
+        meta.setPage(pageable.getPageNumber() + 1);
+        meta.setPageSize(pageable.getPageSize());
+        meta.setTotal(page.getTotalElements());
+        meta.setPages(page.getTotalPages());
+        result.setMeta(meta);
+        List<ResReviewDTO> dtoList = page.getContent().stream()
+                .map(this::convertToDTO)
+                .toList();
+        result.setResult(dtoList);
+        return result;
+    }
+
     @Transactional
     public ResReviewDTO createReview(ReqReviewCreateDTO req) throws IdInvalidException {
         Long customerId = SecurityUtils.getCurrentUserId();
-        
+
         // 1. Validate Target
         String reviewTarget = req.getReviewTarget().toLowerCase();
         if (!reviewTarget.equals("restaurant") && !reviewTarget.equals("driver")) {
@@ -165,7 +214,8 @@ public class ReviewService {
 
         if (reviewTarget.equals("restaurant")) {
             Map<String, Object> rest = (Map<String, Object>) orderRes.get("restaurant");
-            if (rest == null) throw new IdInvalidException("Order does not have a restaurant assigned");
+            if (rest == null)
+                throw new IdInvalidException("Order does not have a restaurant assigned");
             targetNameObj = (String) rest.get("name");
             restaurantId = Long.valueOf(rest.get("id").toString());
             List<Map<String, Object>> types = (List<Map<String, Object>>) rest.get("restaurantTypes");
@@ -176,7 +226,8 @@ public class ReviewService {
             }
         } else if (reviewTarget.equals("driver")) {
             Map<String, Object> driver = (Map<String, Object>) orderRes.get("driver");
-            if (driver == null) throw new IdInvalidException("Order does not have a driver assigned");
+            if (driver == null)
+                throw new IdInvalidException("Order does not have a driver assigned");
             targetNameObj = (String) driver.get("name");
         }
 
@@ -197,7 +248,8 @@ public class ReviewService {
             userScoringService.trackRating(scoreEvent, review.getRating());
         }
 
-        // 7. Publish review event to Kafka for Restaurant/Auth services to update global ratings
+        // 7. Publish review event to Kafka for Restaurant/Auth services to update
+        // global ratings
         kafkaProducerService.publishReviewCreatedEvent(reviewTarget, review.getTargetName(), review.getRating());
 
         return convertToDTO(savedReview);
@@ -228,8 +280,8 @@ public class ReviewService {
 
         if (ratingChanged) {
             kafkaProducerService.publishReviewCreatedEvent(
-                    updatedReview.getReviewTarget(), 
-                    updatedReview.getTargetName(), 
+                    updatedReview.getReviewTarget(),
+                    updatedReview.getTargetName(),
                     updatedReview.getRating());
         }
 
@@ -242,8 +294,9 @@ public class ReviewService {
                 .orElseThrow(() -> new IdInvalidException("Review not found with id: " + id));
 
         this.reviewRepository.deleteById(id);
-        
-        // Let external services recalculate rating if they want by publishing event (optional)
+
+        // Let external services recalculate rating if they want by publishing event
+        // (optional)
     }
 
     public ResultPaginationDTO getAllReviews(Specification<Review> spec, Pageable pageable) {

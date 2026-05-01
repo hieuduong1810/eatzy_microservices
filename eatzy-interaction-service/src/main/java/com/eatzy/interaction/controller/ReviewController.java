@@ -70,6 +70,12 @@ public class ReviewController {
         return ResponseEntity.ok(reviewService.getReviewsByTarget(reviewTarget, targetName));
     }
 
+    @GetMapping("/my-restaurant")
+    public ResponseEntity<ResultPaginationDTO> getReviewsByMyRestaurant(
+            @Filter Specification<Review> spec, Pageable pageable) throws IdInvalidException {
+        return ResponseEntity.ok(reviewService.getReviewsByMyRestaurant(spec, pageable));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteReview(@PathVariable("id") Long id) throws IdInvalidException {
         reviewService.deleteReview(id);

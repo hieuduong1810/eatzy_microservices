@@ -140,6 +140,14 @@ public class OrderService {
                 .map(orderMapper::toResOrderDTO).collect(Collectors.toList());
     }
 
+    /**
+     * Lấy orders theo restaurantId và khoảng thời gian (dùng cho restaurant report).
+     */
+    public List<ResOrderDTO> getOrdersDTOByRestaurantIdAndDateRange(Long restaurantId, Instant startDate, Instant endDate) {
+        return orderRepository.findByRestaurantIdAndCreatedAtBetweenOrderByCreatedAtDesc(restaurantId, startDate, endDate)
+                .stream().map(orderMapper::toResOrderDTO).collect(Collectors.toList());
+    }
+
     public List<ResOrderDTO> getOrdersDTOByCustomerId(Long customerId) {
         return orderRepository.findByCustomerIdOrderByCreatedAtDesc(customerId).stream()
                 .map(orderMapper::toResOrderDTO).collect(Collectors.toList());

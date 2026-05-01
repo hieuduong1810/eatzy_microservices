@@ -2,6 +2,7 @@ package com.eatzy.payment.service;
 
 import com.eatzy.common.dto.ResultPaginationDTO;
 import com.eatzy.common.exception.IdInvalidException;
+import com.eatzy.common.util.SecurityUtils;
 import com.eatzy.payment.designpattern.adapter.AuthServiceClient;
 import com.eatzy.payment.designpattern.adapter.OrderServiceClient;
 import com.eatzy.payment.domain.Voucher;
@@ -12,7 +13,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -28,8 +28,8 @@ public class VoucherService {
     private final AuthServiceClient authServiceClient;
 
     public VoucherService(VoucherRepository voucherRepository,
-                          OrderServiceClient orderServiceClient,
-                          AuthServiceClient authServiceClient) {
+            OrderServiceClient orderServiceClient,
+            AuthServiceClient authServiceClient) {
         this.voucherRepository = voucherRepository;
         this.orderServiceClient = orderServiceClient;
         this.authServiceClient = authServiceClient;
@@ -37,20 +37,11 @@ public class VoucherService {
 
     private Long getCurrentUserId() {
         try {
-            String email = SecurityContextHolder.getContext().getAuthentication().getName();
-            if (email != null && !email.equals("anonymousUser")) {
-                Map<String, Object> userBody = authServiceClient.getUserByEmail(email);
-                if (userBody != null && userBody.containsKey("data")) {
-                    Map<String, Object> userData = (Map<String, Object>) userBody.get("data");
-                    if (userData != null && userData.containsKey("id")) {
-                        return ((Number) userData.get("id")).longValue();
-                    }
-                }
-            }
+            return SecurityUtils.getCurrentUserId();
         } catch (Exception e) {
-            // Ignore
+            // Return null if user not authenticated
+            return null;
         }
-        return null;
     }
 
     public ResVoucherDTO convertToResVoucherDTO(Voucher voucher) {
@@ -58,7 +49,8 @@ public class VoucherService {
     }
 
     public ResVoucherDTO convertToResVoucherDTO(Voucher voucher, Long userId) {
-        if (voucher == null) return null;
+        if (voucher == null)
+            return null;
         ResVoucherDTO dto = new ResVoucherDTO();
         dto.setId(voucher.getId());
         dto.setCode(voucher.getCode());
@@ -98,7 +90,7 @@ public class VoucherService {
                         ResVoucherDTO.RestaurantSummary rs = new ResVoucherDTO.RestaurantSummary();
                         rs.setId(rId);
                         // Due to performance, we don't fetch every restaurant name.
-                        rs.setName("Restaurant " + rId); 
+                        rs.setName("Restaurant " + rId);
                         return rs;
                     }).collect(Collectors.toList());
             dto.setRestaurants(restaurantDTOs);
@@ -127,7 +119,8 @@ public class VoucherService {
         return vouchers.stream()
                 .filter(voucher -> voucher.getActive() != null && voucher.getActive())
                 .filter(voucher -> {
-                    if (voucher.getUsageLimitPerUser() == null) return true;
+                    if (voucher.getUsageLimitPerUser() == null)
+                        return true;
                     try {
                         Long usageCount = orderServiceClient.countByCustomerIdAndVoucherId(customerId, voucher.getId());
                         return (usageCount != null ? usageCount : 0L) < voucher.getUsageLimitPerUser();
@@ -160,7 +153,7 @@ public class VoucherService {
             voucher.setRemainingQuantity(voucher.getTotalQuantity());
         }
         // Empty means all restaurants
-        voucher.setRestaurantIds(new ArrayList<>()); 
+        voucher.setRestaurantIds(new ArrayList<>());
         Voucher savedVoucher = voucherRepository.save(voucher);
         return convertToResVoucherDTO(savedVoucher);
     }
@@ -176,24 +169,36 @@ public class VoucherService {
             }
             currentVoucher.setCode(voucher.getCode());
         }
-        
-        if (voucher.getDescription() != null) currentVoucher.setDescription(voucher.getDescription());
-        if (voucher.getDiscountType() != null) currentVoucher.setDiscountType(voucher.getDiscountType());
-        if (voucher.getDiscountValue() != null) currentVoucher.setDiscountValue(voucher.getDiscountValue());
-        if (voucher.getMinOrderValue() != null) currentVoucher.setMinOrderValue(voucher.getMinOrderValue());
-        if (voucher.getMaxDiscountAmount() != null) currentVoucher.setMaxDiscountAmount(voucher.getMaxDiscountAmount());
-        if (voucher.getUsageLimitPerUser() != null) currentVoucher.setUsageLimitPerUser(voucher.getUsageLimitPerUser());
-        if (voucher.getStartDate() != null) currentVoucher.setStartDate(voucher.getStartDate());
-        if (voucher.getEndDate() != null) currentVoucher.setEndDate(voucher.getEndDate());
-        
+
+        if (voucher.getDescription() != null)
+            currentVoucher.setDescription(voucher.getDescription());
+        if (voucher.getDiscountType() != null)
+            currentVoucher.setDiscountType(voucher.getDiscountType());
+        if (voucher.getDiscountValue() != null)
+            currentVoucher.setDiscountValue(voucher.getDiscountValue());
+        if (voucher.getMinOrderValue() != null)
+            currentVoucher.setMinOrderValue(voucher.getMinOrderValue());
+        if (voucher.getMaxDiscountAmount() != null)
+            currentVoucher.setMaxDiscountAmount(voucher.getMaxDiscountAmount());
+        if (voucher.getUsageLimitPerUser() != null)
+            currentVoucher.setUsageLimitPerUser(voucher.getUsageLimitPerUser());
+        if (voucher.getStartDate() != null)
+            currentVoucher.setStartDate(voucher.getStartDate());
+        if (voucher.getEndDate() != null)
+            currentVoucher.setEndDate(voucher.getEndDate());
+
         if (voucher.getTotalQuantity() != null) {
             Integer quantityChange = voucher.getTotalQuantity();
             if (quantityChange > 0) {
                 currentVoucher.setTotalQuantity(currentVoucher.getTotalQuantity() + quantityChange);
-                currentVoucher.setRemainingQuantity((currentVoucher.getRemainingQuantity() != null ? currentVoucher.getRemainingQuantity() : 0) + quantityChange);
+                currentVoucher.setRemainingQuantity(
+                        (currentVoucher.getRemainingQuantity() != null ? currentVoucher.getRemainingQuantity() : 0)
+                                + quantityChange);
             } else if (quantityChange < 0) {
                 Integer absChange = Math.abs(quantityChange);
-                Integer currentRemaining = currentVoucher.getRemainingQuantity() != null ? currentVoucher.getRemainingQuantity() : 0;
+                Integer currentRemaining = currentVoucher.getRemainingQuantity() != null
+                        ? currentVoucher.getRemainingQuantity()
+                        : 0;
                 if (currentRemaining >= absChange) {
                     currentVoucher.setTotalQuantity(currentVoucher.getTotalQuantity() + quantityChange);
                     currentVoucher.setRemainingQuantity(currentRemaining + quantityChange);
@@ -226,7 +231,8 @@ public class VoucherService {
 
     @Transactional
     public void decrementVoucherQuantity(List<Long> voucherIds) {
-        if (voucherIds == null || voucherIds.isEmpty()) return;
+        if (voucherIds == null || voucherIds.isEmpty())
+            return;
 
         for (Long voucherId : voucherIds) {
             Voucher voucher = voucherRepository.findById(voucherId).orElse(null);
@@ -234,7 +240,8 @@ public class VoucherService {
                 voucher.setRemainingQuantity(voucher.getRemainingQuantity() - 1);
                 voucherRepository.save(voucher);
                 // System log equivalent to eatzy_backend log
-                System.out.println("Áp dụng voucher " + voucher.getCode() + " - Số lượng còn lại: " + voucher.getRemainingQuantity());
+                System.out.println("Áp dụng voucher " + voucher.getCode() + " - Số lượng còn lại: "
+                        + voucher.getRemainingQuantity());
             }
         }
     }

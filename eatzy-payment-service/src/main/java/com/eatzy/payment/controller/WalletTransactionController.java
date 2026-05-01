@@ -59,4 +59,14 @@ public class WalletTransactionController {
         return ResponseEntity
                 .ok(walletTransactionService.getWalletTransactionsByWalletIdWithSpec(walletId, spec, pageable));
     }
+
+    /**
+     * Lấy danh sách giao dịch của current user.
+     * Hỗ trợ phân trang: ?page=1&size=15&sort=createdAt,desc
+     */
+    @GetMapping("/my-transactions")
+    public ResponseEntity<ResultPaginationDTO> getMyTransactions(Pageable pageable)
+            throws IdInvalidException {
+        return ResponseEntity.ok(walletTransactionService.getMyTransactions(pageable));
+    }
 }

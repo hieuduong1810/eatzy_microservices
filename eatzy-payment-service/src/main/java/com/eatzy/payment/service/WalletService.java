@@ -1,7 +1,9 @@
 package com.eatzy.payment.service;
 
 import com.eatzy.common.exception.IdInvalidException;
+import com.eatzy.common.util.SecurityUtils;
 import com.eatzy.payment.domain.Wallet;
+import com.eatzy.payment.dto.response.ResWalletDTO;
 import com.eatzy.payment.repository.WalletRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -70,5 +72,26 @@ public class WalletService {
 
         wallet.setBalance(wallet.getBalance().subtract(amount));
         walletRepository.save(wallet);
+    }
+
+    /**
+     * Lấy wallet của current user (dựa vào userId từ JWT)
+     */
+    public ResWalletDTO getMyWallet() throws IdInvalidException {
+        Long userId = SecurityUtils.getCurrentUserId();
+        Wallet wallet = walletRepository.findByUserId(userId).orElse(null);
+        if (wallet == null) {
+            // Auto-create wallet nếu chưa có
+            wallet = createWallet(userId);
+        }
+        return convertToDTO(wallet);
+    }
+
+    private ResWalletDTO convertToDTO(Wallet wallet) {
+        return ResWalletDTO.builder()
+                .id(wallet.getId())
+                .userId(wallet.getUserId())
+                .balance(wallet.getBalance())
+                .build();
     }
 }

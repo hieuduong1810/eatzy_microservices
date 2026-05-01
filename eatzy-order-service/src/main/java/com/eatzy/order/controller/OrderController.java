@@ -114,6 +114,14 @@ public class OrderController {
         return ResponseEntity.ok(orderService.getOrdersDTOByRestaurantIdAndStatus(restaurantId, status));
     }
 
+    @GetMapping("/orders/restaurant/{restaurantId}/date-range")
+    public ResponseEntity<List<ResOrderDTO>> getOrdersByRestaurantAndDateRange(
+            @PathVariable("restaurantId") Long restaurantId,
+            @RequestParam("startDate") java.time.Instant startDate,
+            @RequestParam("endDate") java.time.Instant endDate) {
+        return ResponseEntity.ok(orderService.getOrdersDTOByRestaurantIdAndDateRange(restaurantId, startDate, endDate));
+    }
+
     @GetMapping("/orders/my-restaurant")
     public ResponseEntity<ResultPaginationDTO> getOrdersByCurrentOwnerRestaurant(
             @Filter Specification<Order> spec, Pageable pageable) throws IdInvalidException {
