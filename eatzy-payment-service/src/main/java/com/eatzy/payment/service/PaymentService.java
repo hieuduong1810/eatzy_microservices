@@ -203,7 +203,7 @@ public class PaymentService {
         Instant now = Instant.now();
 
         for (Long vId : voucherIds) {
-            Voucher v = voucherService.getVoucherById(vId);
+            Voucher v = voucherService.findVoucherEntityById(vId);
             if (v == null || !v.getActive())
                 continue;
 

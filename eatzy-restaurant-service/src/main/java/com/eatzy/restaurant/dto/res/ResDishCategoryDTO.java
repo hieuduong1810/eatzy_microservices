@@ -1,4 +1,4 @@
-package com.eatzy.restaurant.domain.res;
+package com.eatzy.restaurant.dto.res;
 
 import java.util.List;
 
@@ -11,10 +11,8 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class ResMenuOptionGroupDTO {
+public class ResDishCategoryDTO {
     private Long id;
     private String name;
-    private Integer minChoices;
-    private Integer maxChoices;
-    private List<ResMenuOptionDTO> menuOptions;
+    private List<ResDishDTO> dishes;
 }

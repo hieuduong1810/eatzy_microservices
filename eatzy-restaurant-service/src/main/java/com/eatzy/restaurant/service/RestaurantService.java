@@ -18,8 +18,8 @@ import com.eatzy.restaurant.designpattern.strategy.commission.CommissionStrategy
 import com.eatzy.restaurant.designpattern.strategy.ranking.GuestRankingStrategy;
 import com.eatzy.restaurant.designpattern.strategy.ranking.PersonalizedRankingStrategy;
 import com.eatzy.restaurant.domain.Restaurant;
-import com.eatzy.restaurant.domain.res.ResRestaurantDTO;
-import com.eatzy.restaurant.domain.res.ResRestaurantMagazineDTO;
+import com.eatzy.restaurant.dto.res.ResRestaurantDTO;
+import com.eatzy.restaurant.dto.res.ResRestaurantMagazineDTO;
 import com.eatzy.restaurant.client.InteractionServiceClient;
 import com.eatzy.restaurant.client.dto.BatchScoreRequestDTO;
 import com.eatzy.restaurant.client.dto.BatchScoreResponseDTO;

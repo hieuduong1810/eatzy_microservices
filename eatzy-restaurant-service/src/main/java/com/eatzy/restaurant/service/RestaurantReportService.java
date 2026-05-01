@@ -6,7 +6,7 @@ import com.eatzy.restaurant.client.OrderServiceClient;
 import com.eatzy.restaurant.client.dto.OrderClientDTO;
 import com.eatzy.restaurant.client.dto.ReviewClientDTO;
 import com.eatzy.restaurant.domain.Dish;
-import com.eatzy.restaurant.domain.res.report.*;
+import com.eatzy.restaurant.dto.res.report.*;
 import com.eatzy.restaurant.repository.DishRepository;
 import com.eatzy.restaurant.repository.RestaurantRepository;
 import org.slf4j.Logger;

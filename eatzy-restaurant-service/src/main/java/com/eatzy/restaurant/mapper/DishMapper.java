@@ -7,9 +7,9 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 import com.eatzy.restaurant.domain.Dish;
-import com.eatzy.restaurant.domain.res.ResDishDTO;
-import com.eatzy.restaurant.domain.res.ResMenuOptionDTO;
-import com.eatzy.restaurant.domain.res.ResMenuOptionGroupDTO;
+import com.eatzy.restaurant.dto.res.ResDishDTO;
+import com.eatzy.restaurant.dto.res.ResMenuOptionDTO;
+import com.eatzy.restaurant.dto.res.ResMenuOptionGroupDTO;
 
 @Component
 public class DishMapper {

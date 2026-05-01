@@ -1,4 +1,4 @@
-package com.eatzy.restaurant.domain.res;
+package com.eatzy.restaurant.dto.res;
 
 import java.math.BigDecimal;
 import java.util.List;

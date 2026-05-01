@@ -2,7 +2,7 @@ package com.eatzy.restaurant.designpattern.strategy.ranking;
 
 import com.eatzy.common.service.MapboxService;
 import com.eatzy.restaurant.domain.Restaurant;
-import com.eatzy.restaurant.domain.res.ResRestaurantMagazineDTO;
+import com.eatzy.restaurant.dto.res.ResRestaurantMagazineDTO;
 import com.eatzy.restaurant.mapper.RestaurantMapper;
 import org.springframework.stereotype.Component;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +26,8 @@ public class GuestRankingStrategy implements RankingStrategy {
     }
 
     @Override
-    public List<ResRestaurantMagazineDTO> calculateAndSort(List<Restaurant> restaurants, BigDecimal userLat, BigDecimal userLng, Long userId) {
+    public List<ResRestaurantMagazineDTO> calculateAndSort(List<Restaurant> restaurants, BigDecimal userLat,
+            BigDecimal userLng, Long userId) {
         List<ResRestaurantMagazineDTO> results = new ArrayList<>();
 
         for (Restaurant r : restaurants) {
@@ -39,7 +40,8 @@ public class GuestRankingStrategy implements RankingStrategy {
                 distance = mapboxService.getDrivingDistance(userLat, userLng, r.getLatitude(), r.getLongitude());
             }
 
-            // Neu khong the lay duoc khoang cach hoac vuot qua khoang cach toi da thi bo qua
+            // Neu khong the lay duoc khoang cach hoac vuot qua khoang cach toi da thi bo
+            // qua
             if (distance == null || distance.compareTo(MAX_DISTANCE_KM) > 0) {
                 continue;
             }
@@ -55,8 +57,9 @@ public class GuestRankingStrategy implements RankingStrategy {
         }
 
         // Sap xep tang dan theo khoang cach (gan nhat len dau)
-        results.sort(Comparator.comparing(ResRestaurantMagazineDTO::getDistance, Comparator.nullsLast(Comparator.naturalOrder())));
-        
+        results.sort(Comparator.comparing(ResRestaurantMagazineDTO::getDistance,
+                Comparator.nullsLast(Comparator.naturalOrder())));
+
         log.info("GuestRankingStrategy: processed {} restaurants", results.size());
         return results;
     }

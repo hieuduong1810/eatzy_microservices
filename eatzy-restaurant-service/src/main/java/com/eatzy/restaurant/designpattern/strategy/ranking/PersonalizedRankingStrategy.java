@@ -6,7 +6,7 @@ import com.eatzy.restaurant.client.dto.BatchScoreRequestDTO;
 import com.eatzy.restaurant.client.dto.BatchScoreResponseDTO;
 import com.eatzy.restaurant.domain.Restaurant;
 import com.eatzy.restaurant.domain.RestaurantType;
-import com.eatzy.restaurant.domain.res.ResRestaurantMagazineDTO;
+import com.eatzy.restaurant.dto.res.ResRestaurantMagazineDTO;
 import com.eatzy.restaurant.mapper.RestaurantMapper;
 import org.springframework.stereotype.Component;
 import lombok.extern.slf4j.Slf4j;
@@ -24,14 +24,16 @@ public class PersonalizedRankingStrategy implements RankingStrategy {
     private final InteractionServiceClient interactionServiceClient;
     private static final BigDecimal MAX_DISTANCE_KM = new BigDecimal("10.0");
 
-    public PersonalizedRankingStrategy(RestaurantMapper restaurantMapper, MapboxService mapboxService, InteractionServiceClient interactionServiceClient) {
+    public PersonalizedRankingStrategy(RestaurantMapper restaurantMapper, MapboxService mapboxService,
+            InteractionServiceClient interactionServiceClient) {
         this.restaurantMapper = restaurantMapper;
         this.mapboxService = mapboxService;
         this.interactionServiceClient = interactionServiceClient;
     }
 
     @Override
-    public List<ResRestaurantMagazineDTO> calculateAndSort(List<Restaurant> restaurants, BigDecimal userLat, BigDecimal userLng, Long userId) {
+    public List<ResRestaurantMagazineDTO> calculateAndSort(List<Restaurant> restaurants, BigDecimal userLat,
+            BigDecimal userLng, Long userId) {
         List<ResRestaurantMagazineDTO> results = new ArrayList<>();
 
         // 1. Thu thap thong tin cham diem ca nhan hoa
@@ -40,7 +42,7 @@ public class PersonalizedRankingStrategy implements RankingStrategy {
 
         try {
             List<Long> resIds = restaurants.stream().map(Restaurant::getId).collect(Collectors.toList());
-            
+
             Set<Long> allTypeIds = new HashSet<>();
             for (Restaurant r : restaurants) {
                 if (r.getRestaurantTypes() != null) {
@@ -105,7 +107,8 @@ public class PersonalizedRankingStrategy implements RankingStrategy {
             double qualityScore = r.getAverageRating() != null ? r.getAverageRating().doubleValue() * 20.0 : 0.0;
 
             // Final Score
-            double finalScore = (typeScore * 0.40) + (loyaltyScore * 0.30) + (distanceScore * 0.20) + (qualityScore * 0.10);
+            double finalScore = (typeScore * 0.40) + (loyaltyScore * 0.30) + (distanceScore * 0.20)
+                    + (qualityScore * 0.10);
 
             dto.setTypeScore(typeScore);
             dto.setLoyaltyScore(loyaltyScore);
@@ -117,8 +120,10 @@ public class PersonalizedRankingStrategy implements RankingStrategy {
         }
 
         // 3. Sap xep giam dan theo diem final (Diem cao nhat len dau)
-        results.sort(Comparator.comparing(ResRestaurantMagazineDTO::getFinalScore, Comparator.nullsFirst(Comparator.naturalOrder())).reversed());
-        
+        results.sort(Comparator
+                .comparing(ResRestaurantMagazineDTO::getFinalScore, Comparator.nullsFirst(Comparator.naturalOrder()))
+                .reversed());
+
         log.info("PersonalizedRankingStrategy: processed {} restaurants for user {}", results.size(), userId);
         return results;
     }

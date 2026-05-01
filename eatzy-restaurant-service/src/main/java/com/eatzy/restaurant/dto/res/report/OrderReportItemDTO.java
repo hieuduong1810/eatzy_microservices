@@ -1,8 +1,13 @@
-package com.eatzy.restaurant.domain.res.report;
+package com.eatzy.restaurant.dto.res.report;
 
-import lombok.*;
 import java.math.BigDecimal;
 import java.time.Instant;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
 @Setter
@@ -11,7 +16,7 @@ import java.time.Instant;
 @Builder
 public class OrderReportItemDTO {
     private Long id;
-    private String orderCode;          // Format: EZ{id}
+    private String orderCode; // Format: EZ{id}
     private String customerName;
     private String customerPhone;
     private Instant orderTime;

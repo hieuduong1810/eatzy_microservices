@@ -1,8 +1,13 @@
-package com.eatzy.restaurant.domain.res.report;
+package com.eatzy.restaurant.dto.res.report;
 
-import lombok.*;
 import java.math.BigDecimal;
 import java.util.List;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
 @Setter
@@ -14,6 +19,6 @@ public class ReviewSummaryDTO {
     private Integer totalReviews;
     private RatingDistributionDTO ratingDistribution;
     private List<ReviewReportItemDTO> recentReviews;
-    private BigDecimal responseRate;        // % đánh giá đã trả lời
-    private BigDecimal averageResponseTime; // Thời gian trả lời trung bình (phút)
+    private BigDecimal responseRate;
+    private BigDecimal averageResponseTime;
 }

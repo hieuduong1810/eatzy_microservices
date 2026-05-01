@@ -1,7 +1,12 @@
-package com.eatzy.restaurant.domain.res.report;
+package com.eatzy.restaurant.dto.res.report;
 
-import lombok.*;
 import java.util.List;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
 @Setter

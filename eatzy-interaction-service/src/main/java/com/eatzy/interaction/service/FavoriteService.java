@@ -41,9 +41,14 @@ public class FavoriteService {
         ResFavouriteDTO dto = new ResFavouriteDTO();
         dto.setId(favorite.getId());
 
-        // Fetch User
+        System.out.println("========== DEBUG FAVORITE ID: " + favorite.getId() + " ==========");
+
+        // 1. Fetch User Info from Auth Service
         try {
+            System.out.println("Calling Auth Service for Customer ID: " + favorite.getCustomerId());
             Map<String, Object> userMap = authServiceClient.getUserById(favorite.getCustomerId());
+            System.out.println("Auth Service Response: " + userMap);
+
             if (userMap != null) {
                 ResFavouriteDTO.User customerDTO = new ResFavouriteDTO.User();
                 customerDTO.setId(favorite.getCustomerId());
@@ -51,13 +56,15 @@ public class FavoriteService {
                 dto.setCustomer(customerDTO);
             }
         } catch (FeignException e) {
-            // User not found or auth service down
+            System.err.println("Auth Service Error: " + e.getMessage());
         }
 
-        // Fetch Restaurant
+        // 2. Fetch Restaurant Info from Restaurant Service
         try {
-            Map<String, Object> restMap = restaurantServiceClient
-                    .getRestaurantById(favorite.getRestaurantId());
+            System.out.println("Calling Restaurant Service for Restaurant ID: " + favorite.getRestaurantId());
+            Map<String, Object> restMap = restaurantServiceClient.getRestaurantById(favorite.getRestaurantId());
+            System.out.println("Restaurant Service Response: " + restMap);
+
             if (restMap != null) {
                 ResFavouriteDTO.Restaurant restaurantDTO = new ResFavouriteDTO.Restaurant();
                 restaurantDTO.setId(favorite.getRestaurantId());
@@ -66,15 +73,17 @@ public class FavoriteService {
                 restaurantDTO.setAddress((String) restMap.get("address"));
                 restaurantDTO.setDescription((String) restMap.get("description"));
                 restaurantDTO.setStatus((String) restMap.get("status"));
+                restaurantDTO.setImageUrl((String) restMap.get("avatarUrl"));
 
                 if (restMap.get("averageRating") != null) {
                     restaurantDTO.setAverageRating(new BigDecimal(restMap.get("averageRating").toString()));
                 }
-                restaurantDTO.setImageUrl((String) restMap.get("imageUrl"));
 
                 // Map restaurantTypes
                 if (restMap.get("restaurantTypes") != null) {
                     List<Map<String, Object>> typesList = (List<Map<String, Object>>) restMap.get("restaurantTypes");
+                    System.out.println("Restaurant Types found: " + typesList.size());
+
                     restaurantDTO.setRestaurantTypes(typesList.stream().map(type -> {
                         ResFavouriteDTO.RestaurantType typeDTO = new ResFavouriteDTO.RestaurantType();
                         typeDTO.setId(Long.valueOf(type.get("id").toString()));
@@ -85,9 +94,10 @@ public class FavoriteService {
                 dto.setRestaurant(restaurantDTO);
             }
         } catch (FeignException e) {
-            // Restaurant not found or service down
+            System.err.println("Restaurant Service Error: " + e.getMessage());
         }
 
+        System.out.println("========== END DEBUG ==========");
         return dto;
     }
 

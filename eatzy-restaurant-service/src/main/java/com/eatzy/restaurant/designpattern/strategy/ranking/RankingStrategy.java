@@ -1,7 +1,7 @@
 package com.eatzy.restaurant.designpattern.strategy.ranking;
 
 import com.eatzy.restaurant.domain.Restaurant;
-import com.eatzy.restaurant.domain.res.ResRestaurantMagazineDTO;
+import com.eatzy.restaurant.dto.res.ResRestaurantMagazineDTO;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -14,5 +14,6 @@ public interface RankingStrategy {
     /**
      * Tinh toan diem va sap xep nha hang.
      */
-    List<ResRestaurantMagazineDTO> calculateAndSort(List<Restaurant> restaurants, BigDecimal userLat, BigDecimal userLng, Long userId);
+    List<ResRestaurantMagazineDTO> calculateAndSort(List<Restaurant> restaurants, BigDecimal userLat,
+            BigDecimal userLng, Long userId);
 }

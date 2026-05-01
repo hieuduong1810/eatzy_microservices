@@ -16,7 +16,7 @@ import com.eatzy.restaurant.domain.DishCategory;
 import com.eatzy.restaurant.domain.MenuOption;
 import com.eatzy.restaurant.domain.MenuOptionGroup;
 import com.eatzy.restaurant.domain.Restaurant;
-import com.eatzy.restaurant.domain.req.ReqDishDTO;
+import com.eatzy.restaurant.dto.req.ReqDishDTO;
 import com.eatzy.common.dto.ResultPaginationDTO;
 
 import com.eatzy.restaurant.repository.DishRepository;
@@ -151,8 +151,6 @@ public class DishService {
     public void deleteDish(Long id) {
         this.dishRepository.deleteById(id);
     }
-
-
 
     @Transactional
     public Dish createDishWithMenuOptions(ReqDishDTO dto) throws IdInvalidException {

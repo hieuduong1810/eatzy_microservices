@@ -3,6 +3,7 @@ package com.eatzy.order.mapper;
 import com.eatzy.common.service.MapboxService;
 import com.eatzy.order.designpattern.adapter.AuthServiceClient;
 import com.eatzy.order.designpattern.adapter.RestaurantServiceClient;
+import com.eatzy.order.designpattern.adapter.PaymentServiceClient;
 import com.eatzy.order.domain.Order;
 import com.eatzy.order.domain.OrderEarningsSummary;
 import com.eatzy.order.domain.OrderItem;
@@ -24,7 +25,8 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * Mapper: Converts Order entities to DTOs, enriching with data from external services via Adapter pattern.
+ * Mapper: Converts Order entities to DTOs, enriching with data from external
+ * services via Adapter pattern.
  */
 @Component
 public class OrderMapper {
@@ -33,15 +35,18 @@ public class OrderMapper {
 
     private final AuthServiceClient authServiceClient;
     private final RestaurantServiceClient restaurantServiceClient;
+    private final PaymentServiceClient paymentServiceClient;
     private final OrderEarningsSummaryRepository orderEarningsSummaryRepository;
     private final MapboxService mapboxService;
 
     public OrderMapper(AuthServiceClient authServiceClient,
-                       RestaurantServiceClient restaurantServiceClient,
-                       OrderEarningsSummaryRepository orderEarningsSummaryRepository,
-                       MapboxService mapboxService) {
+            RestaurantServiceClient restaurantServiceClient,
+            PaymentServiceClient paymentServiceClient,
+            OrderEarningsSummaryRepository orderEarningsSummaryRepository,
+            MapboxService mapboxService) {
         this.authServiceClient = authServiceClient;
         this.restaurantServiceClient = restaurantServiceClient;
+        this.paymentServiceClient = paymentServiceClient;
         this.orderEarningsSummaryRepository = orderEarningsSummaryRepository;
         this.mapboxService = mapboxService;
     }
@@ -64,6 +69,22 @@ public class OrderMapper {
         dto.setCreatedAt(order.getCreatedAt());
         dto.setPreparingAt(order.getPreparingAt());
         dto.setDeliveredAt(order.getDeliveredAt());
+
+        // Enrich with Vouchers
+        if (order.getVoucherIds() != null && !order.getVoucherIds().isEmpty()) {
+            List<ResOrderDTO.Voucher> voucherDTOs = order.getVoucherIds().stream().map(voucherId -> {
+                try {
+                    Map<String, Object> voucherData = paymentServiceClient.getVoucherById(voucherId);
+                    if (voucherData != null) {
+                        return new ResOrderDTO.Voucher(voucherId, getStringValue(voucherData, "code"));
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to enrich voucher info for voucherId {}: {}", voucherId, e.getMessage());
+                }
+                return null; // Return null if fetching fails
+            }).filter(java.util.Objects::nonNull).collect(Collectors.toList());
+            dto.setVouchers(voucherDTOs);
+        }
 
         // Calculate total trip duration
         if (order.getCreatedAt() != null && order.getDeliveredAt() != null) {
@@ -135,6 +156,9 @@ public class OrderMapper {
                         driver.setCompletedTrips(getStringValue(driverProfile, "completedTrips"));
                         driver.setVehicleLicensePlate(getStringValue(driverProfile, "vehicleLicensePlate"));
                         driver.setVehicleDetails(getStringValue(driverProfile, "vehicleDetails"));
+                        driver.setVehicleType(getStringValue(driverProfile, "vehicleType"));
+                        driver.setVehicleLicensePlate(getStringValue(driverProfile, "vehicleLicensePlate"));
+                        driver.setPhoneNumber(getStringValue(driverProfile, "phoneNumber"));
                     }
                     dto.setDriver(driver);
                 }
@@ -206,7 +230,8 @@ public class OrderMapper {
         // Enrich menu option info from Restaurant Service
         if (option.getMenuOptionId() != null) {
             try {
-                Map<String, Object> menuOptionData = restaurantServiceClient.getMenuOptionById(option.getMenuOptionId());
+                Map<String, Object> menuOptionData = restaurantServiceClient
+                        .getMenuOptionById(option.getMenuOptionId());
                 if (menuOptionData != null) {
                     ResOrderItemOptionDTO.MenuOption menuOption = new ResOrderItemOptionDTO.MenuOption();
                     menuOption.setId(option.getMenuOptionId());
@@ -234,8 +259,10 @@ public class OrderMapper {
 
     private BigDecimal getBigDecimalValue(Map<String, Object> map, String key) {
         Object value = map.get(key);
-        if (value == null) return null;
-        if (value instanceof BigDecimal) return (BigDecimal) value;
+        if (value == null)
+            return null;
+        if (value instanceof BigDecimal)
+            return (BigDecimal) value;
         return new BigDecimal(value.toString());
     }
 }

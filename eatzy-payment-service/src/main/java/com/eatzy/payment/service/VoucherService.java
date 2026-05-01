@@ -100,8 +100,9 @@ public class VoucherService {
     }
 
     @Transactional
-    public Voucher getVoucherById(Long id) {
-        return voucherRepository.findById(id).orElse(null);
+    public ResVoucherDTO getVoucherById(Long id) {
+        Voucher voucher = voucherRepository.findById(id).orElse(null);
+        return convertToResVoucherDTO(voucher);
     }
 
     public ResVoucherDTO getVoucherByCode(String code) {
@@ -248,5 +249,10 @@ public class VoucherService {
 
     public void deleteVoucher(Long id) {
         voucherRepository.deleteById(id);
+    }
+
+    @Transactional
+    public Voucher findVoucherEntityById(Long id) {
+        return voucherRepository.findById(id).orElse(null);
     }
 }

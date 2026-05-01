@@ -1,7 +1,8 @@
-package com.eatzy.restaurant.domain.req;
+package com.eatzy.restaurant.dto.req;
 
 import java.math.BigDecimal;
 import java.util.List;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -52,5 +53,4 @@ public class ReqDishDTO {
             private Boolean isAvailable;
         }
     }
-
 }

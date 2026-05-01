@@ -2,7 +2,7 @@ package com.eatzy.restaurant.controller;
 
 import com.eatzy.common.exception.IdInvalidException;
 import com.eatzy.common.util.SecurityUtils;
-import com.eatzy.restaurant.domain.res.report.*;
+import com.eatzy.restaurant.dto.res.report.*;
 import com.eatzy.restaurant.service.RestaurantReportService;
 import com.eatzy.restaurant.service.RestaurantService;
 import org.springframework.format.annotation.DateTimeFormat;

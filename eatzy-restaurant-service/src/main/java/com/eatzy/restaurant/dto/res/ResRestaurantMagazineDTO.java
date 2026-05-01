@@ -1,7 +1,8 @@
-package com.eatzy.restaurant.domain.res;
+package com.eatzy.restaurant.dto.res;
 
 import java.math.BigDecimal;
 import java.util.List;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -30,7 +31,7 @@ public class ResRestaurantMagazineDTO {
     // Personalized ranking scores (optional - only set if user is logged in)
     private Double typeScore; // S_Type (40%)
     private Double loyaltyScore; // S_Quen (30%)
-    private Double distanceScore; // S_Gần (20%)
+    private Double distanceScore; // S_Gan (20%)
     private Double qualityScore; // S_Ngon (10%)
     private Double finalScore; // Total weighted score
 

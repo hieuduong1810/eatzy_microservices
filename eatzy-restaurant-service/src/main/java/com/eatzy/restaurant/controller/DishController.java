@@ -6,9 +6,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.turkraft.springfilter.boot.Filter;
 
 import com.eatzy.restaurant.domain.Dish;
-import com.eatzy.restaurant.domain.req.ReqDishDTO;
+import com.eatzy.restaurant.dto.req.ReqDishDTO;
 import com.eatzy.common.dto.ResultPaginationDTO;
-import com.eatzy.restaurant.domain.res.ResDishDTO;
+import com.eatzy.restaurant.dto.res.ResDishDTO;
 import com.eatzy.restaurant.service.DishService;
 import com.eatzy.restaurant.mapper.DishMapper;
 import com.eatzy.common.annotation.ApiMessage;

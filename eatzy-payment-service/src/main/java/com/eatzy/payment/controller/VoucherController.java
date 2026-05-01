@@ -30,7 +30,8 @@ public class VoucherController {
     }
 
     @PostMapping("/all-restaurants")
-    public ResponseEntity<ResVoucherDTO> createVoucherForAllRestaurants(@RequestBody Voucher voucher) throws IdInvalidException {
+    public ResponseEntity<ResVoucherDTO> createVoucherForAllRestaurants(@RequestBody Voucher voucher)
+            throws IdInvalidException {
         ResVoucherDTO dto = voucherService.createVoucherForAllRestaurants(voucher);
         return ResponseEntity.status(HttpStatus.CREATED).body(dto);
     }
@@ -48,12 +49,9 @@ public class VoucherController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ResVoucherDTO> getVoucherById(@PathVariable Long id) throws IdInvalidException {
-        Voucher voucher = voucherService.getVoucherById(id);
-        if (voucher == null) {
-            throw new IdInvalidException("Voucher not found");
-        }
-        return ResponseEntity.ok(voucherService.convertToResVoucherDTO(voucher));
+    public ResponseEntity<ResVoucherDTO> getVoucherById(@PathVariable long id) {
+        ResVoucherDTO dto = voucherService.getVoucherById(id);
+        return ResponseEntity.ok(dto);
     }
 
     @GetMapping("/code/{code}")
@@ -62,12 +60,13 @@ public class VoucherController {
     }
 
     @GetMapping("/restaurant/{restaurantId}")
-    public ResponseEntity<List<ResVoucherDTO>> getVouchersByRestaurantId(@PathVariable Long restaurantId) throws IdInvalidException {
+    public ResponseEntity<List<ResVoucherDTO>> getVouchersByRestaurantId(@PathVariable Long restaurantId)
+            throws IdInvalidException {
         return ResponseEntity.ok(voucherService.getVouchersByRestaurantId(restaurantId));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteVoucher(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteVoucher(@PathVariable long id) {
         voucherService.deleteVoucher(id);
         return ResponseEntity.noContent().build();
     }

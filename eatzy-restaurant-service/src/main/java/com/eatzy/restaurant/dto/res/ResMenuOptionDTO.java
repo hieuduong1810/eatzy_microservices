@@ -1,7 +1,6 @@
-package com.eatzy.restaurant.domain.res;
+package com.eatzy.restaurant.dto.res;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -12,8 +11,9 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class ResRestaurantMenuDTO {
+public class ResMenuOptionDTO {
     private Long id;
     private String name;
-    private List<ResDishCategoryDTO> dishes;
+    private BigDecimal priceAdjustment;
+    private boolean isAvailable;
 }

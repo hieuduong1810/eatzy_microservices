@@ -12,7 +12,8 @@ import com.eatzy.common.annotation.ApiMessage;
 import com.eatzy.common.dto.ResultPaginationDTO;
 import com.eatzy.common.exception.IdInvalidException;
 import com.eatzy.restaurant.domain.Restaurant;
-import com.eatzy.restaurant.domain.res.ResRestaurantDTO;
+import com.eatzy.restaurant.dto.res.ResRestaurantDTO;
+import com.eatzy.restaurant.dto.res.ResRestaurantMenuDTO;
 import com.eatzy.restaurant.service.RestaurantService;
 import com.turkraft.springfilter.boot.Filter;
 
@@ -145,7 +146,7 @@ public class RestaurantController {
 
     @GetMapping("/restaurants/{id}/menu")
     @ApiMessage("Get restaurant menu")
-    public ResponseEntity<com.eatzy.restaurant.domain.res.ResRestaurantMenuDTO> getRestaurantMenu(
+    public ResponseEntity<ResRestaurantMenuDTO> getRestaurantMenu(
             @PathVariable("id") Long id) throws IdInvalidException {
         Restaurant restaurant = restaurantService.getRestaurantById(id);
         if (restaurant == null) {
@@ -187,7 +188,7 @@ public class RestaurantController {
 
     @GetMapping("/restaurants/my-restaurant/menu")
     @ApiMessage("Get my restaurant menu")
-    public ResponseEntity<com.eatzy.restaurant.domain.res.ResRestaurantMenuDTO> getMyRestaurantMenu()
+    public ResponseEntity<ResRestaurantMenuDTO> getMyRestaurantMenu()
             throws IdInvalidException {
         Long ownerId = com.eatzy.common.util.SecurityUtils.getCurrentUserId();
         Restaurant myRestaurant = restaurantService.getRestaurantByOwnerId(ownerId);
