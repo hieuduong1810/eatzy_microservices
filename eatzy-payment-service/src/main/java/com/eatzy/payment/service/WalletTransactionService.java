@@ -9,6 +9,7 @@ import com.eatzy.payment.domain.Wallet;
 import com.eatzy.payment.domain.WalletTransaction;
 import com.eatzy.payment.dto.response.ResWalletTransactionDTO;
 import com.eatzy.payment.repository.WalletTransactionRepository;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -28,13 +29,16 @@ import com.eatzy.payment.domain.enums.TransactionType;
 public class WalletTransactionService {
     private final WalletTransactionRepository walletTransactionRepository;
     private final WalletService walletService;
+    private final AuthServiceClient authServiceClient;
     private final OrderServiceClient orderServiceClient;
 
     public WalletTransactionService(WalletTransactionRepository walletTransactionRepository,
             WalletService walletService,
-            OrderServiceClient orderServiceClient) {
+            AuthServiceClient authServiceClient,
+            @Lazy OrderServiceClient orderServiceClient) {
         this.walletTransactionRepository = walletTransactionRepository;
         this.walletService = walletService;
+        this.authServiceClient = authServiceClient;
         this.orderServiceClient = orderServiceClient;
     }
 
@@ -43,10 +47,26 @@ public class WalletTransactionService {
         dto.setId(transaction.getId());
 
         if (transaction.getWallet() != null) {
-            dto.setWalletId(transaction.getWallet().getId());
+            Wallet wallet = transaction.getWallet();
+            ResWalletTransactionDTO.Wallet walletDTO = new ResWalletTransactionDTO.Wallet();
+            walletDTO.setId(wallet.getId());
+
+            if (wallet.getUserId() != null) {
+                ResWalletTransactionDTO.Wallet.User userDTO = new ResWalletTransactionDTO.Wallet.User();
+                userDTO.setId(wallet.getUserId());
+                userDTO.setName(extractUserName(wallet.getUserId()));
+                walletDTO.setUser(userDTO);
+            }
+
+            dto.setWallet(walletDTO);
         }
 
-        dto.setOrderId(transaction.getOrderId());
+        if (transaction.getOrderId() != null) {
+            ResWalletTransactionDTO.Order orderDTO = new ResWalletTransactionDTO.Order();
+            orderDTO.setId(transaction.getOrderId());
+            dto.setOrder(orderDTO);
+        }
+
         dto.setAmount(transaction.getAmount());
         dto.setTransactionType(transaction.getTransactionType());
         dto.setDescription(transaction.getDescription());
@@ -55,6 +75,38 @@ public class WalletTransactionService {
         dto.setCreatedAt(transaction.getCreatedAt());
         dto.setTransactionDate(transaction.getTransactionDate());
         return dto;
+    }
+
+    private String extractUserName(Long userId) {
+        try {
+            Map<String, Object> response = authServiceClient.getUserById(userId);
+            if (response == null) {
+                return null;
+            }
+
+            Object data = response.get("data");
+            if (data instanceof Map<?, ?> dataMap) {
+                Object name = dataMap.get("name");
+                if (name == null) {
+                    name = dataMap.get("fullName");
+                }
+                if (name == null) {
+                    name = dataMap.get("username");
+                }
+                return name != null ? name.toString() : null;
+            }
+
+            Object name = response.get("name");
+            if (name == null) {
+                name = response.get("fullName");
+            }
+            if (name == null) {
+                name = response.get("username");
+            }
+            return name != null ? name.toString() : null;
+        } catch (Exception ex) {
+            return null;
+        }
     }
 
     public ResWalletTransactionDTO getWalletTransactionById(Long id) {
