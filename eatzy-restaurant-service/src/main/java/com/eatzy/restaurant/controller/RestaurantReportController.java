@@ -64,22 +64,16 @@ public class RestaurantReportController {
     }
 
     @GetMapping("/menu")
-    public ResponseEntity<MenuSummaryDTO> getMenuReport(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant endDate)
-            throws IdInvalidException {
+    public ResponseEntity<MenuSummaryDTO> getMenuReport() throws IdInvalidException {
 
         Long restaurantId = getMyRestaurantId();
-        return ResponseEntity.ok(reportService.getMenuReport(restaurantId, startDate, endDate));
+        return ResponseEntity.ok(reportService.getMenuReport(restaurantId));
     }
 
     @GetMapping("/reviews")
-    public ResponseEntity<ReviewSummaryDTO> getReviewReport(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant endDate)
-            throws IdInvalidException {
+    public ResponseEntity<ReviewSummaryDTO> getReviewReport() throws IdInvalidException {
 
         Long restaurantId = getMyRestaurantId();
-        return ResponseEntity.ok(reportService.getReviewReport(restaurantId, startDate, endDate));
+        return ResponseEntity.ok(reportService.getReviewReport(restaurantId));
     }
 }

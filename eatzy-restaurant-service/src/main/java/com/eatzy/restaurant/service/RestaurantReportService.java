@@ -109,11 +109,10 @@ public class RestaurantReportService {
         }).collect(Collectors.toList());
     }
 
-    public MenuSummaryDTO getMenuReport(Long restaurantId, Instant startDate, Instant endDate)
+    public MenuSummaryDTO getMenuReport(Long restaurantId)
             throws IdInvalidException {
         validateRestaurant(restaurantId);
-        List<OrderClientDTO> orders = orderServiceClient.getOrdersByRestaurantAndDateRange(restaurantId, startDate,
-                endDate);
+        List<OrderClientDTO> orders = orderServiceClient.getOrdersByRestaurantAndDateRange(restaurantId, null, null);
         List<Dish> allDishes = dishRepository.findByRestaurantId(restaurantId);
         List<ReviewClientDTO> reviews = getRestaurantReviews(restaurantId, null, null); // Get all reviews to calc dish
                                                                                         // ratings
@@ -216,10 +215,10 @@ public class RestaurantReportService {
         return summary;
     }
 
-    public ReviewSummaryDTO getReviewReport(Long restaurantId, Instant startDate, Instant endDate)
+    public ReviewSummaryDTO getReviewReport(Long restaurantId)
             throws IdInvalidException {
         validateRestaurant(restaurantId);
-        List<ReviewClientDTO> reviews = getRestaurantReviews(restaurantId, startDate, endDate);
+        List<ReviewClientDTO> reviews = getRestaurantReviews(restaurantId, null, null);
 
         ReviewSummaryDTO summary = new ReviewSummaryDTO();
         summary.setTotalReviews(reviews.size());

@@ -117,8 +117,8 @@ public class OrderController {
     @GetMapping("/orders/restaurant/{restaurantId}/date-range")
     public ResponseEntity<List<ResOrderDTO>> getOrdersByRestaurantAndDateRange(
             @PathVariable("restaurantId") Long restaurantId,
-            @RequestParam("startDate") java.time.Instant startDate,
-            @RequestParam("endDate") java.time.Instant endDate) {
+            @RequestParam(value = "startDate", required = false) java.time.Instant startDate,
+            @RequestParam(value = "endDate", required = false) java.time.Instant endDate) {
         return ResponseEntity.ok(orderService.getOrdersDTOByRestaurantIdAndDateRange(restaurantId, startDate, endDate));
     }
 

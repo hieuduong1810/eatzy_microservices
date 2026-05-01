@@ -141,10 +141,17 @@ public class OrderService {
     }
 
     /**
-     * Lấy orders theo restaurantId và khoảng thời gian (dùng cho restaurant report).
+     * Lấy orders theo restaurantId và khoảng thời gian (dùng cho restaurant
+     * report).
      */
-    public List<ResOrderDTO> getOrdersDTOByRestaurantIdAndDateRange(Long restaurantId, Instant startDate, Instant endDate) {
-        return orderRepository.findByRestaurantIdAndCreatedAtBetweenOrderByCreatedAtDesc(restaurantId, startDate, endDate)
+    public List<ResOrderDTO> getOrdersDTOByRestaurantIdAndDateRange(Long restaurantId, Instant startDate,
+            Instant endDate) {
+        if (startDate == null || endDate == null) {
+            return orderRepository.findByRestaurantIdOrderByCreatedAtDesc(restaurantId).stream()
+                    .map(orderMapper::toResOrderDTO).collect(Collectors.toList());
+        }
+        return orderRepository
+                .findByRestaurantIdAndCreatedAtBetweenOrderByCreatedAtDesc(restaurantId, startDate, endDate)
                 .stream().map(orderMapper::toResOrderDTO).collect(Collectors.toList());
     }
 
@@ -159,7 +166,8 @@ public class OrderService {
     }
 
     public ResOrderDTO getActiveOrderDTOByDriverId(Long driverId) {
-        Order order = orderRepository.findFirstByDriverIdAndOrderStatusIn(driverId, Arrays.asList("DRIVER_ASSIGNED", "READY", "PICKED_UP", "ARRIVED"));
+        Order order = orderRepository.findFirstByDriverIdAndOrderStatusIn(driverId,
+                Arrays.asList("DRIVER_ASSIGNED", "READY", "PICKED_UP", "ARRIVED"));
         return order != null ? orderMapper.toResOrderDTO(order) : null;
     }
 
@@ -168,7 +176,8 @@ public class OrderService {
                 .map(orderMapper::toResOrderDTO).collect(Collectors.toList());
     }
 
-    public ResultPaginationDTO getOrdersByCurrentOwnerRestaurant(Specification<Order> spec, Pageable pageable) throws IdInvalidException {
+    public ResultPaginationDTO getOrdersByCurrentOwnerRestaurant(Specification<Order> spec, Pageable pageable)
+            throws IdInvalidException {
         Map<String, Object> myRestaurant = restaurantServiceClient.getMyRestaurant();
         if (myRestaurant == null || !myRestaurant.containsKey("id")) {
             throw new IdInvalidException("Owner does not have a restaurant");
