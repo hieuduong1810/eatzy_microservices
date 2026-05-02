@@ -109,6 +109,13 @@ public class DriverProfileController {
         return ResponseEntity.ok(profile);
     }
 
+    @GetMapping("/driver-profiles/my-profile")
+    @ApiMessage("Get current driver's profile")
+    public ResponseEntity<ResDriverProfileDTO> getMyProfile() throws IdInvalidException {
+        ResDriverProfileDTO dto = driverProfileService.getCurrentDriverProfileDTO();
+        return ResponseEntity.ok(dto);
+    }
+
     @GetMapping("/driver-profiles/my-profile/status")
     @ApiMessage("Get current driver's profile status")
     public ResponseEntity<Map<String, String>> getMyProfileStatus() throws IdInvalidException {
