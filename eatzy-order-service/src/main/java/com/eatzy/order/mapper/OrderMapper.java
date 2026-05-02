@@ -172,7 +172,8 @@ public class OrderMapper {
                             }
                         }
                     }
-                    log.info("[OrderMapper] Mapped driver for orderId={}, driverId={}, name={}, email={}, phoneNumber={}, vehicleType={}, vehicleDetails={}, averageRating={}, completedTrips={}, vehicleLicensePlate={}",
+                    log.info(
+                            "[OrderMapper] Mapped driver for orderId={}, driverId={}, name={}, email={}, phoneNumber={}, vehicleType={}, vehicleDetails={}, averageRating={}, completedTrips={}, vehicleLicensePlate={}",
                             order.getId(),
                             order.getDriverId(),
                             driver.getName(),

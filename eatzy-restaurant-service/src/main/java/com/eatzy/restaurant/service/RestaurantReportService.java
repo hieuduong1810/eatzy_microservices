@@ -117,6 +117,12 @@ public class RestaurantReportService {
         List<ReviewClientDTO> reviews = getRestaurantReviews(restaurantId, null, null); // Get all reviews to calc dish
                                                                                         // ratings
 
+        log.info("getMenuReport for restaurantId={}: fetched {} orders, {} dishes, {} reviews", 
+                restaurantId, 
+                (orders != null ? orders.size() : "null"), 
+                (allDishes != null ? allDishes.size() : "null"), 
+                (reviews != null ? reviews.size() : "null"));
+
         MenuSummaryDTO summary = new MenuSummaryDTO();
         summary.setTotalDishes(allDishes.size());
         summary.setActiveDishes((int) allDishes.stream().filter(d -> d.getAvailabilityQuantity() > 0).count());
@@ -125,26 +131,38 @@ public class RestaurantReportService {
         Map<Long, Integer> dishOrderCounts = new HashMap<>();
         Map<Long, BigDecimal> dishRevenue = new HashMap<>();
 
-        for (OrderClientDTO order : orders) {
-            if ("DELIVERED".equals(order.getOrderStatus()) && order.getOrderItems() != null) {
-                for (OrderClientDTO.OrderItem item : order.getOrderItems()) {
-                    Long dishId = item.getDishId();
-                    if (dishId == null)
-                        continue;
+        if (orders != null) {
+            int deliveredCount = 0;
+            for (OrderClientDTO order : orders) {
+                if ("DELIVERED".equals(order.getOrderStatus()) && order.getOrderItems() != null) {
+                    deliveredCount++;
+                    for (OrderClientDTO.OrderItem item : order.getOrderItems()) {
+                        Long dishId = item.getDishId();
+                        log.info("Processing item in DELIVERED order: dishId={}, quantity={}, price={}", dishId, item.getQuantity(), item.getPriceAtPurchase());
+                        if (dishId == null)
+                            continue;
 
-                    dishOrderCounts.put(dishId, dishOrderCounts.getOrDefault(dishId, 0) + item.getQuantity());
-                    BigDecimal revenue = item.getPriceAtPurchase() != null ? item.getPriceAtPurchase()
-                            : BigDecimal.ZERO;
-                    dishRevenue.put(dishId, dishRevenue.getOrDefault(dishId, BigDecimal.ZERO).add(revenue));
+                        dishOrderCounts.put(dishId, dishOrderCounts.getOrDefault(dishId, 0) + item.getQuantity());
+                        BigDecimal revenue = item.getPriceAtPurchase() != null ? item.getPriceAtPurchase()
+                                : BigDecimal.ZERO;
+                        dishRevenue.put(dishId, dishRevenue.getOrDefault(dishId, BigDecimal.ZERO).add(revenue));
+                    }
+                } else if (!"DELIVERED".equals(order.getOrderStatus())) {
+                    log.info("Ignoring order {} with status {}", order.getId(), order.getOrderStatus());
                 }
             }
+            log.info("Found {} DELIVERED orders out of {} total orders", deliveredCount, orders.size());
         }
+
+        log.info("Calculated dishOrderCounts: {}", dishOrderCounts);
+        log.info("Calculated dishRevenue: {}", dishRevenue);
 
         List<MenuAnalyticsItemDTO> analyticsItems = new ArrayList<>();
         for (Dish dish : allDishes) {
             MenuAnalyticsItemDTO item = new MenuAnalyticsItemDTO();
             item.setDishId(dish.getId());
             item.setDishName(dish.getName());
+            item.setCategoryId(dish.getCategory() != null ? dish.getCategory().getId() : null);
             item.setCategoryName(dish.getCategory() != null ? dish.getCategory().getName() : "Không phân loại");
             item.setImageUrl(dish.getImageUrl());
             item.setPrice(dish.getPrice());
@@ -185,6 +203,7 @@ public class RestaurantReportService {
             String catName = item.getCategoryName();
             CategoryAnalyticsItemDTO cat = categoryMap.computeIfAbsent(catName, k -> {
                 CategoryAnalyticsItemDTO c = new CategoryAnalyticsItemDTO();
+                c.setCategoryId(item.getCategoryId());
                 c.setCategoryName(k);
                 c.setTotalDishes(0);
                 c.setTotalOrdered(0);
@@ -220,10 +239,13 @@ public class RestaurantReportService {
         validateRestaurant(restaurantId);
         List<ReviewClientDTO> reviews = getRestaurantReviews(restaurantId, null, null);
 
-        ReviewSummaryDTO summary = new ReviewSummaryDTO();
-        summary.setTotalReviews(reviews.size());
+        log.info("getReviewReport for restaurantId={}: fetched {} reviews", restaurantId, (reviews != null ? reviews.size() : "null"));
 
-        if (reviews.isEmpty()) {
+        ReviewSummaryDTO summary = new ReviewSummaryDTO();
+        summary.setTotalReviews(reviews != null ? reviews.size() : 0);
+
+        if (reviews == null || reviews.isEmpty()) {
+            log.info("Reviews list is empty or null, returning default summary");
             summary.setAverageRating(BigDecimal.ZERO);
             summary.setRatingDistribution(new RatingDistributionDTO(0, 0, 0, 0, 0));
             summary.setRecentReviews(Collections.emptyList());
@@ -425,8 +447,18 @@ public class RestaurantReportService {
 
     private List<ReviewClientDTO> getRestaurantReviews(Long restaurantId, Instant startDate, Instant endDate) {
         try {
-            List<ReviewClientDTO> reviews = interactionServiceClient.getReviewsByTarget("RESTAURANT",
-                    String.valueOf(restaurantId));
+            com.eatzy.restaurant.domain.Restaurant restaurant = restaurantRepository.findById(restaurantId).orElse(null);
+            if (restaurant == null) {
+                log.warn("Restaurant not found for id {}", restaurantId);
+                return Collections.emptyList();
+            }
+
+            log.info("Fetching reviews for restaurant with name {}", restaurant.getName());
+            List<ReviewClientDTO> reviews = interactionServiceClient.getReviewsByTarget("restaurant",
+                    restaurant.getName());
+            
+            log.info("interactionServiceClient returned {} reviews", (reviews != null ? reviews.size() : "null"));
+
             if (reviews == null)
                 return Collections.emptyList();
 
@@ -438,7 +470,7 @@ public class RestaurantReportService {
             }
             return reviews;
         } catch (Exception e) {
-            log.warn("Failed to fetch reviews: {}", e.getMessage());
+            log.warn("Failed to fetch reviews: {}", e.getMessage(), e);
             return Collections.emptyList();
         }
     }

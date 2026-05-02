@@ -16,6 +16,7 @@ import lombok.Setter;
 public class MenuAnalyticsItemDTO {
     private Long dishId;
     private String dishName;
+    private Long categoryId;
     private String categoryName;
     private String imageUrl;
     private BigDecimal price;

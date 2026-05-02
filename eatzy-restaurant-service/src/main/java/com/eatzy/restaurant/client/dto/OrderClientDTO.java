@@ -41,8 +41,19 @@ public class OrderClientDTO {
     @Getter
     @Setter
     public static class OrderItem {
-        private Long dishId;
+        private Dish dish;
         private Integer quantity;
         private BigDecimal priceAtPurchase;
+
+        public Long getDishId() {
+            return dish != null ? dish.getId() : null;
+        }
+    }
+
+    @Getter
+    @Setter
+    public static class Dish {
+        private Long id;
+        private String name;
     }
 }
