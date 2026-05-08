@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eatzy AI Insights</title>
+    <!-- Sử dụng font Inter hiện đại -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Thư viện để chuyển Markdown từ AI trả về thành HTML -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+            line-height: 1.6;
+            margin: 0;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        h1 {
+            color: #FF5A5F; /* Màu thương hiệu Eatzy (ví dụ) */
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 12px;
+            background-color: #FF5A5F;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .btn:hover {
+            background-color: #e0484d;
+        }
+        .btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        #result {
+            margin-top: 30px;
+            padding: 25px;
+            background: #fdfdfd;
+            border: 1px solid #eaeaea;
+            border-radius: 8px;
+            min-height: 100px;
+            display: none;
+            font-size: 15px;
+        }
+        /* Tùy chỉnh font cho nội dung Markdown của AI */
+        #result h1, #result h2, #result h3 {
+            color: #111;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        #result h2 { font-size: 20px; }
+        #result h3 { font-size: 18px; }
+        #result p { margin-bottom: 15px; }
+        #result ul, #result ol { padding-left: 25px; margin-bottom: 15px; }
+        #result li { margin-bottom: 8px; }
+        #result strong { color: #000; font-weight: 600; }
+        
+        .loader {
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top: 3px solid white;
+            width: 18px;
+            height: 18px;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+            display: none;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Eatzy AI Insights Test</h1>
+    <button id="fetchBtn" class="btn">
+        <span class="loader" id="loader"></span>
+        <span id="btnText">Phân tích Đánh giá Nhà hàng (Test ID: 123)</span>
+    </button>
+    
+    <div id="result"></div>
+</div>
+
+<script>
+    const fetchBtn = document.getElementById('fetchBtn');
+    const resultDiv = document.getElementById('result');
+    const loader = document.getElementById('loader');
+    const btnText = document.getElementById('btnText');
+
+    fetchBtn.addEventListener('click', async () => {
+        // Cập nhật UI sang trạng thái loading
+        fetchBtn.disabled = true;
+        loader.style.display = 'inline-block';
+        btnText.innerText = 'Đang phân tích dữ liệu... (khoảng 3-5s)';
+        resultDiv.style.display = 'none';
+        
+        try {
+            // Gọi API local (cổng 8089 theo env của bạn)
+            const response = await fetch('http://localhost:8089/api/v1/ai/restaurants/123/insights', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.detail || `Lỗi HTTP: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            // Format kết quả bằng thư viện Marked.js để render Markdown sang HTML
+            resultDiv.innerHTML = marked.parse(data.insights);
+            resultDiv.style.display = 'block';
+            
+        } catch (error) {
+            resultDiv.innerHTML = `<p style="color: red; font-weight: 500;">❌ Lỗi: ${error.message}</p>`;
+            resultDiv.style.display = 'block';
+        } finally {
+            // Khôi phục UI button
+            fetchBtn.disabled = false;
+            loader.style.display = 'none';
+            btnText.innerText = 'Phân tích Đánh giá Nhà hàng (Test ID: 123)';
+        }
+    });
+</script>
+
+</body>
+</html>

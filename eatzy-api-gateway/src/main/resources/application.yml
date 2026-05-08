@@ -62,6 +62,10 @@ spring:
           uri: lb://EATZY-SYSTEM-CONFIG-SERVICE
           predicates:
             - Path=/api/v1/system-configurations/**
+        - id: eatzy-ai-service
+          uri: lb://EATZY-AI-SERVICE
+          predicates:
+            - Path=/api/v1/ai/**
 
 server:
   port: 8080
@@ -89,6 +93,8 @@ springdoc:
         url: /eatzy-interaction-service/v3/api-docs
       - name: Config Service
         url: /eatzy-system-config-service/v3/api-docs
+      - name: AI Service
+        url: /eatzy-ai-service/openapi.json
 
 eureka:
   client:
