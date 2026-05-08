@@ -243,3 +243,25 @@ services:
       - .env
     environment:
       <<: *env-mapping
+
+  eatzy-ai-service:
+    image: ${DOCKERHUB_USER:-hieuduong1810}/eatzy-ai-service:latest
+    build:
+      context: eatzy-ai-service
+      dockerfile: Dockerfile
+    container_name: eatzy-ai-service
+    restart: always
+    ports:
+      - "8089:8089"
+    depends_on:
+      - eatzy-discovery-server
+      - eatzy-config-server
+    env_file:
+      - .env
+    environment:
+      <<: *env-mapping
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      EUREKA_SERVER_URL: http://eatzy-discovery-server:8761/eureka
+      SERVICE_PORT: 8089
+      INSTANCE_HOST: eatzy-ai-service
+      API_GATEWAY_URL: http://eatzy-api-gateway:8080
