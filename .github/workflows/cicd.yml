@@ -32,6 +32,7 @@ jobs:
             "eatzy-payment-service"
             "eatzy-interaction-service"
             "eatzy-system-config-service"
+            "eatzy-ai-service"
           )
 
           for SERVICE in "${SERVICES[@]}"; do
