@@ -5,13 +5,13 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # Copy file requirements.txt vào container
-COPY requirements.txt .
+COPY eatzy-ai-service/requirements.txt .
 
 # Cài đặt các thư viện cần thiết
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy toàn bộ source code vào container
-COPY . .
+COPY eatzy-ai-service/ .
 
 # Mở cổng 8089 (theo cấu hình của service)
 EXPOSE 8089

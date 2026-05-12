@@ -280,8 +280,8 @@ services:
   eatzy-ai-service:
     image: ${DOCKERHUB_USER:-hieuduong1810}/eatzy-ai-service:latest
     build:
-      context: eatzy-ai-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: eatzy-ai-service/Dockerfile
     container_name: eatzy-ai-service
     restart: always
     ports:
