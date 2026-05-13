@@ -58,7 +58,7 @@ public class CartController {
     }
 
     @PostMapping("/carts")
-    public ResponseEntity<ResCartDTO> saveOrUpdateCart(@Valid @RequestBody ReqCartDTO reqCartDTO) {
+    public ResponseEntity<ResCartDTO> saveOrUpdateCart(@Valid @RequestBody ReqCartDTO reqCartDTO) throws IdInvalidException {
         ResCartDTO result = cartService.saveOrUpdateCart(reqCartDTO);
         if (result == null) {
             return ResponseEntity.ok().build();

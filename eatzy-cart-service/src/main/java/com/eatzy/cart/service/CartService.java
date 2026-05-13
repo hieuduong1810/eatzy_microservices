@@ -69,7 +69,7 @@ public class CartService {
     }
 
     @Transactional
-    public ResCartDTO saveOrUpdateCart(ReqCartDTO reqCartDTO) {
+    public ResCartDTO saveOrUpdateCart(ReqCartDTO reqCartDTO) throws com.eatzy.common.exception.IdInvalidException {
         // Need customerId. Since the ReqCartDTO has customer internally?
         // Wait, original reqCartDTO has Customer entity with ID. Let's assume frontend
         // passes customer.id
@@ -77,17 +77,7 @@ public class CartService {
             throw new IllegalArgumentException("Restaurant ID is required");
         }
 
-        // This is a simplified fallback since reqCartDTO doesn't usually carry
-        // customerId if it relied on JWT
-        // In the microservice, we will just assume customerId = 1 for testing unless
-        // passed.
-        // Wait, I will add customerId to ReqCartDTO if not present, but user's class
-        // has it.
-        // Ah, our ReqCartDTO didn't include Customer! I will assume it is passed
-        // somehow, or hardcoded for now, but
-        // to be strictly correct, I should parse the JWT to get User ID.
-        // For now, let's assume customer ID is extracted correctly.
-        Long customerId = 1L; // MOCK for this specific adapter port
+        Long customerId = SecurityUtils.getCurrentUserId();
 
         Long restaurantId = reqCartDTO.getRestaurant().getId();
 
