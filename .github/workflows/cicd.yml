@@ -47,6 +47,17 @@ jobs:
             docker push ${{ secrets.DOCKERHUB_USER }}/$SERVICE:latest
           done
 
+      - name: Copy docker-compose files to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_SSH_PORT }}
+          source: "docker-compose.prod.yml"
+          target: "/home/${{ secrets.SERVER_USER }}/projects/eatzy-microservices"
+          overwrite: true
+
       - name: Deploy to server via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -57,10 +68,7 @@ jobs:
           command_timeout: 30m
           script: |
             # cd vào thư mục project trên server
-            cd /home/hieu/projects/eatzy-microservices
-            
-            # (Tùy chọn) Kéo file cấu hình mới nhất từ Github về nếu server được clone bằng git
-            git pull origin main || true
+            cd /home/${{ secrets.SERVER_USER }}/projects/eatzy-microservices
             
             # Export biến môi trường để docker-compose biết pull image từ đâu
             export DOCKERHUB_USER=${{ secrets.DOCKERHUB_USER }}
