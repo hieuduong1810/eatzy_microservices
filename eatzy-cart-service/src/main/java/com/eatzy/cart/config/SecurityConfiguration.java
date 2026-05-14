@@ -33,7 +33,7 @@ public class SecurityConfiguration {
                         // Internally we might ping some things, but mostly authenticated
                         .requestMatchers("/v3/api-docs", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                         .permitAll()
-                        .anyRequest().authenticated())
+                        .requestMatchers("/actuator/**").permitAll().anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt
                                 .decoder(jwtDecoder())
@@ -67,3 +67,4 @@ public class SecurityConfiguration {
         };
     }
 }
+

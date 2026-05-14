@@ -89,7 +89,7 @@ public class SecurityConfiguration {
                         authz -> authz
                                 .requestMatchers(whiteList).permitAll()
                                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/users/*").permitAll()
-                                .anyRequest().authenticated())
+                                .requestMatchers("/actuator/**").permitAll().anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults())
                         .authenticationEntryPoint(customAuthenticationEntryPoint))
                 .formLogin(f -> f.disable())
@@ -132,3 +132,4 @@ public class SecurityConfiguration {
         }
     }
 }
+

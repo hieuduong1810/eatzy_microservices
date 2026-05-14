@@ -5,3 +5,4 @@ langchain-google-genai>=2.0.0
 python-dotenv==1.0.1
 py-eureka-client==0.13.3
 requests==2.32.2
+prometheus-fastapi-instrumentator==7.0.0

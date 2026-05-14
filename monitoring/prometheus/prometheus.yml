@@ -1,0 +1,49 @@
+global:
+  scrape_interval: 15s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+rule_files:
+  - "alert.rules.yml"
+
+scrape_configs:
+  - job_name: 'eatzy-microservices'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['eatzy-api-gateway:8080']
+        labels:
+          application: 'eatzy-api-gateway'
+      - targets: ['eatzy-auth-service:8081']
+        labels:
+          application: 'eatzy-auth-service'
+      - targets: ['eatzy-restaurant-service:8082']
+        labels:
+          application: 'eatzy-restaurant-service'
+      - targets: ['eatzy-order-service:8083']
+        labels:
+          application: 'eatzy-order-service'
+      - targets: ['eatzy-communication-service:8084']
+        labels:
+          application: 'eatzy-communication-service'
+      - targets: ['eatzy-cart-service:8085']
+        labels:
+          application: 'eatzy-cart-service'
+      - targets: ['eatzy-payment-service:8086']
+        labels:
+          application: 'eatzy-payment-service'
+      - targets: ['eatzy-interaction-service:8087']
+        labels:
+          application: 'eatzy-interaction-service'
+      - targets: ['eatzy-system-config-service:8088']
+        labels:
+          application: 'eatzy-system-config-service'
+      - targets: ['eatzy-ai-service:8089']
+        labels:
+          application: 'eatzy-ai-service'
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

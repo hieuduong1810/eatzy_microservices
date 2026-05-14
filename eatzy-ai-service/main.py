@@ -23,6 +23,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from prometheus_fastapi_instrumentator import Instrumentator
+
+# Bật bộ theo dõi và mở cổng báo cáo theo chuẩn của Spring Boot
+Instrumentator().instrument(app).expose(app, endpoint="/actuator/prometheus")
+
 import asyncio
 
 # Setup Eureka

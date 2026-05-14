@@ -1,0 +1,39 @@
+groups:
+  - name: spring-app-alerts
+    rules:
+      - alert: HighErrorRate
+        expr: rate(http_server_requests_seconds_count{status=~"5.."}[1m]) > 2
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Tỉ lệ lỗi 5xx cao"
+          description: "Có hơn 1 lỗi 5xx mỗi giây trong 1 phút qua."
+      - alert: InstanceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Instance offline"
+          description: "{{ $labels.job }} đã offline hơn 2 phút."
+
+  - name: example-alert
+    rules:
+        - alert: HighRequestRate
+          expr: rate(http_requests_total[1m]) > 100
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High request rate detected"
+
+  - name: example-rules
+    rules:
+        - alert: HighCPUUsage
+          expr: process_cpu_seconds_total > 0.8
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High CPU usage detected"

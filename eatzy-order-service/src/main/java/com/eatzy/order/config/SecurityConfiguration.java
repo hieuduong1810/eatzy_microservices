@@ -33,7 +33,7 @@ public class SecurityConfiguration {
                         .requestMatchers("/v3/api-docs", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                         .permitAll()
                         // Secured endpoints
-                        .anyRequest().authenticated())
+                        .requestMatchers("/actuator/**").permitAll().anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt
                                 .decoder(jwtDecoder())
@@ -70,3 +70,4 @@ public class SecurityConfiguration {
         };
     }
 }
+
