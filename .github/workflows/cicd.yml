@@ -54,18 +54,22 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_SSH_PORT }}
+          command_timeout: 30m
           script: |
-            # cd vào thư mục project trên server (hãy đảm bảo đường dẫn này đúng trên server của bạn)
+            # cd vào thư mục project trên server
             cd /home/hieu/projects/eatzy-microservices
+            
+            # (Tùy chọn) Kéo file cấu hình mới nhất từ Github về nếu server được clone bằng git
+            git pull origin main || true
             
             # Export biến môi trường để docker-compose biết pull image từ đâu
             export DOCKERHUB_USER=${{ secrets.DOCKERHUB_USER }}
             
-            # Pull các image mới nhất
-            docker compose pull
+            # Pull các image mới nhất bằng file cấu hình dành cho Production
+            docker compose -f docker-compose.prod.yml pull
             
             # Khởi động lại các container
-            docker compose up -d
+            docker compose -f docker-compose.prod.yml up -d
             
             # Xóa các image cũ để giải phóng dung lượng
             docker image prune -f
