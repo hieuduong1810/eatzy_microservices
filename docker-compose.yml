@@ -285,8 +285,10 @@ services:
     ports:
       - "8089:8089"
     depends_on:
-      - eatzy-discovery-server
-      - eatzy-config-server
+      eatzy-discovery-server:
+        condition: service_healthy
+      eatzy-config-server:
+        condition: service_started
     env_file:
       - .env
     environment:
@@ -382,7 +384,7 @@ services:
     image: grafana/grafana:latest
     container_name: grafana
     ports:
-      - "3001:3000"
+      - "3000:3000"
     environment:
       # thay đổi nếu cần, ví dụ mật khẩu admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
