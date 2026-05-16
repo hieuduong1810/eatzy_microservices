@@ -229,8 +229,44 @@ public class RestaurantService {
 
     public ResultPaginationDTO getNearbyRestaurants(BigDecimal lat, BigDecimal lng, String keyword,
             Specification<Restaurant> spec, Pageable pageable) {
+
+        // 0. Xay dung Specification cho keyword (tim kiem theo ten nha hang, mon an hoac danh muc)
+        Specification<Restaurant> finalSpec = spec;
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            String searchKeyword = "%" + keyword.trim().toLowerCase() + "%";
+            Specification<Restaurant> searchSpec = (root, query, criteriaBuilder) -> {
+                var namePredicate = criteriaBuilder.like(criteriaBuilder.lower(root.get("name")), searchKeyword);
+                
+                var dishSubquery = query.subquery(Long.class);
+                var dishRoot = dishSubquery.from(Restaurant.class);
+                var dishCategoryJoin = dishRoot.join("dishCategories");
+                var dishJoin = dishCategoryJoin.join("dishes");
+                dishSubquery.select(dishRoot.get("id"))
+                        .where(
+                                criteriaBuilder.and(
+                                        criteriaBuilder.equal(dishRoot.get("id"), root.get("id")),
+                                        criteriaBuilder.like(
+                                                criteriaBuilder.lower(dishJoin.get("name")), searchKeyword)));
+                var dishPredicate = criteriaBuilder.exists(dishSubquery);
+
+                var categorySubquery = query.subquery(Long.class);
+                var categoryRoot = categorySubquery.from(Restaurant.class);
+                var categoryJoin = categoryRoot.join("dishCategories");
+                categorySubquery.select(categoryRoot.get("id"))
+                        .where(
+                                criteriaBuilder.and(
+                                        criteriaBuilder.equal(categoryRoot.get("id"), root.get("id")),
+                                        criteriaBuilder.like(
+                                                criteriaBuilder.lower(categoryJoin.get("name")), searchKeyword)));
+                var categoryPredicate = criteriaBuilder.exists(categorySubquery);
+
+                return criteriaBuilder.or(namePredicate, dishPredicate, categoryPredicate);
+            };
+            finalSpec = finalSpec != null ? finalSpec.and(searchSpec) : searchSpec;
+        }
+
         // Lay tat ca nha hang de filter va sap xep trong bo nho (giong monolith)
-        List<Restaurant> restaurants = restaurantRepository.findAll(spec);
+        List<Restaurant> restaurants = finalSpec != null ? restaurantRepository.findAll(finalSpec) : restaurantRepository.findAll();
 
         // Filter nha hang dang hoat dong
         restaurants = restaurants.stream()
@@ -245,12 +281,48 @@ public class RestaurantService {
             log.trace("User unauthenticated for nearby restaurants search");
         }
 
-        // 2. Ap dung Design Pattern: Strategy Pattern cho Ranking
+        // 2. Ap dung Design Pattern: Strategy Pattern cho Ranking mac dinh
         List<ResRestaurantMagazineDTO> rankedList;
         if (userId != null) {
             rankedList = personalizedRankingStrategy.calculateAndSort(restaurants, lat, lng, userId);
         } else {
             rankedList = guestRankingStrategy.calculateAndSort(restaurants, lat, lng, null);
+        }
+
+        // 2.1. Neu user co truyen param sort (vi du: sort=averageRating,desc), ta se de de sap xep
+        if (pageable.getSort().isSorted()) {
+            java.util.Comparator<ResRestaurantMagazineDTO> customComparator = null;
+            for (org.springframework.data.domain.Sort.Order order : pageable.getSort()) {
+                java.util.Comparator<ResRestaurantMagazineDTO> propertyComparator = null;
+                switch (order.getProperty()) {
+                    case "distance":
+                        propertyComparator = java.util.Comparator.comparing(ResRestaurantMagazineDTO::getDistance, java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder()));
+                        break;
+                    case "averageRating":
+                        propertyComparator = java.util.Comparator.comparing(ResRestaurantMagazineDTO::getAverageRating, java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder()));
+                        break;
+                    case "finalScore":
+                        propertyComparator = java.util.Comparator.comparing(ResRestaurantMagazineDTO::getFinalScore, java.util.Comparator.nullsFirst(java.util.Comparator.naturalOrder()));
+                        break;
+                    case "name":
+                        propertyComparator = java.util.Comparator.comparing(ResRestaurantMagazineDTO::getName, String.CASE_INSENSITIVE_ORDER);
+                        break;
+                }
+                
+                if (propertyComparator != null) {
+                    if (order.isDescending()) {
+                        propertyComparator = propertyComparator.reversed();
+                    }
+                    if (customComparator == null) {
+                        customComparator = propertyComparator;
+                    } else {
+                        customComparator = customComparator.thenComparing(propertyComparator);
+                    }
+                }
+            }
+            if (customComparator != null) {
+                rankedList.sort(customComparator);
+            }
         }
 
         // 3. SubList Pagination trong Memory
