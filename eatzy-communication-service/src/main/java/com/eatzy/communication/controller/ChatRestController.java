@@ -41,4 +41,26 @@ public class ChatRestController {
     public ResponseEntity<Long> getMessageCount(@PathVariable("orderId") Long orderId) {
         return ResponseEntity.ok(chatMessageService.getMessageCount(orderId));
     }
+
+    /**
+     * Mark all current messages as read for a specific user.
+     * Call this when the user opens the chat window.
+     */
+    @PutMapping("/order/{orderId}/read")
+    public ResponseEntity<Void> markAsRead(
+            @PathVariable("orderId") Long orderId,
+            @RequestParam("userId") Long userId) {
+        chatMessageService.markAsRead(orderId, userId);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Get the number of unread messages for a specific user in an order.
+     */
+    @GetMapping("/order/{orderId}/unread")
+    public ResponseEntity<Long> getUnreadCount(
+            @PathVariable("orderId") Long orderId,
+            @RequestParam("userId") Long userId) {
+        return ResponseEntity.ok(chatMessageService.getUnreadCount(orderId, userId));
+    }
 }

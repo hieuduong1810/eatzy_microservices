@@ -51,4 +51,12 @@ public class ChatMessageService {
     public Long getMessageCount(Long orderId) {
         return redisChatService.getMessageCount(orderId);
     }
+
+    public void markAsRead(Long orderId, Long userId) {
+        redisChatService.markAsRead(orderId, userId);
+    }
+
+    public long getUnreadCount(Long orderId, Long userId) {
+        return redisChatService.getUnreadCount(orderId, userId);
+    }
 }

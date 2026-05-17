@@ -17,6 +17,7 @@ public class UserMapper {
         resUserDTO.setId(user.getId());
         resUserDTO.setName(user.getName());
         resUserDTO.setEmail(user.getEmail());
+        resUserDTO.setPhoneNumber(user.getPhoneNumber());
         resUserDTO.setGender(user.getGender());
         resUserDTO.setAddress(user.getAddress());
         resUserDTO.setAge(user.getAge());
@@ -36,6 +37,7 @@ public class UserMapper {
         resUserDTO.setId(user.getId());
         resUserDTO.setName(user.getName());
         resUserDTO.setEmail(user.getEmail());
+        resUserDTO.setPhoneNumber(user.getPhoneNumber());
         resUserDTO.setGender(user.getGender());
         resUserDTO.setAddress(user.getAddress());
         resUserDTO.setAge(user.getAge());
@@ -55,6 +57,7 @@ public class UserMapper {
         ResUpdateUserDTO.Role role = new ResUpdateUserDTO.Role();
         resUserDTO.setId(user.getId());
         resUserDTO.setName(user.getName());
+        resUserDTO.setPhoneNumber(user.getPhoneNumber());
         resUserDTO.setGender(user.getGender());
         resUserDTO.setAddress(user.getAddress());
         resUserDTO.setAge(user.getAge());

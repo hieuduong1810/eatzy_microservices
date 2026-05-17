@@ -383,17 +383,42 @@
 
         .bubble-wrapper {
             display: flex;
-            flex-direction: column;
-            max-width: 75%;
+            align-items: flex-end;
+            gap: 8px;
+            max-width: 78%;
         }
 
         .bubble-wrapper.self {
             align-self: flex-end;
-            align-items: flex-end;
+            flex-direction: row-reverse;
         }
 
         .bubble-wrapper.other {
             align-self: flex-start;
+            flex-direction: row;
+        }
+
+        .chat-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            object-fit: cover;
+            flex-shrink: 0;
+            border: 2px solid white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+            align-self: flex-end;
+        }
+
+        .bubble-content {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .bubble-wrapper.self .bubble-content {
+            align-items: flex-end;
+        }
+
+        .bubble-wrapper.other .bubble-content {
             align-items: flex-start;
         }
 
@@ -474,6 +499,44 @@
             margin-bottom: 8px;
             font-style: italic;
         }
+
+        .unread-badge {
+            background: #e74c3c;
+            color: white;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 12px;
+            min-width: 22px;
+            text-align: center;
+            display: none;
+            animation: badgePop 0.3s ease;
+        }
+
+        .unread-badge.visible {
+            display: inline-block;
+        }
+
+        @keyframes badgePop {
+            0%   { transform: scale(0.5); opacity: 0; }
+            70%  { transform: scale(1.2); }
+            100% { transform: scale(1);   opacity: 1; }
+        }
+
+        .btn-mark-read {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.35);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-mark-read:hover {
+            background: rgba(255,255,255,0.35);
+        }
     </style>
 </head>
 
@@ -544,7 +607,10 @@
             <div class="chat-container">
                 <div class="chat-header">
                     <span id="chatTitle">Order #...</span>
-                    <div style="font-size: 0.8rem; background: rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 12px;" id="chatRoleTag">Role: N/A</div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span id="unreadBadge" class="unread-badge">0</span>
+                        <div style="font-size: 0.8rem; background: rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 12px;" id="chatRoleTag">Role: N/A</div>
+                    </div>
                 </div>
                 <div class="chat-messages" id="chatHistoryBox">
                     <div style="text-align: center; color: #8888a0; font-size: 0.85rem; margin-top: auto; margin-bottom: auto;">
@@ -553,7 +619,12 @@
                 </div>
                 <div class="typing-indicator-ui" id="typingStatus"></div>
                 <div class="chat-input-area">
-                    <textarea id="chatMessage" placeholder="Nhập tin nhắn..." oninput="sendTypingIndicator()" onkeypress="handleEnter(event)" disabled></textarea>
+                    <textarea id="chatMessage" placeholder="Nhập tin nhắn..."
+                        oninput="sendTypingIndicator()"
+                        onkeypress="handleEnter(event)"
+                        onfocus="onChatFocus()"
+                        onblur="onChatBlur()"
+                        disabled></textarea>
                     <button id="btnSendChat" onclick="sendChat()" disabled>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                     </button>
@@ -581,6 +652,7 @@
     <script>
         let stompClient = null;
         let accessToken = null;
+        let currentUserId = null;
         let subscriptions = {};
         let currentUserRole = 'UNKNOWN';
 
@@ -636,9 +708,16 @@
                     throw new Error('Token not found');
                 }
 
-                // Determine user role from login response or email heuristic
+                // Determine user role and userId from login response or email heuristic
                 try {
                     const userData = data.data && data.data.user ? data.data.user : (data.user || null);
+                    // Extract userId
+                    if (userData && userData.id) {
+                        currentUserId = userData.id;
+                    } else if (userData && userData.userId) {
+                        currentUserId = userData.userId;
+                    }
+                    // Extract role
                     const roleName = userData && userData.role ? userData.role.name : '';
                     if (roleName.toUpperCase().includes('DRIVER')) {
                         currentUserRole = 'DRIVER';
@@ -656,7 +735,7 @@
                     currentUserRole = email.toLowerCase().includes('driver') ? 'DRIVER' : 'CUSTOMER';
                 }
 
-                log(`✅ Đăng nhập thành công! Role: ${currentUserRole}`, 'success');
+                log(`✅ Đăng nhập thành công! Role: ${currentUserRole}, UserId: ${currentUserId ?? 'N/A'}`, 'success');
                 log(`📋 Token: ${accessToken.substring(0, 50)}...`, 'info');
                 document.getElementById('chatRoleTag').textContent = `Role: ${currentUserRole}`;
 
@@ -779,6 +858,9 @@
 
             // Fetch history
             await fetchChatHistory(orderId);
+
+            // Fetch unread count and update badge
+            await fetchUnreadCount(orderId);
         }
 
         async function fetchChatHistory(orderId) {
@@ -826,17 +908,32 @@
                 ? msgDate.toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})
                 : msgDate.toLocaleDateString('vi-VN', {day:'2-digit', month:'2-digit'}) + ' ' + msgDate.toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'});
             
-            // Caching our own role helps determine self vs other
-            // If myRole isn't determined, fallback to identifying by senderType from backend.
-            const isSelf = myRole !== 'UNKNOWN' ? msg.senderType === myRole : msg.senderType === 'DRIVER'; // default view
-            
+            const isSelf = myRole !== 'UNKNOWN' ? msg.senderType === myRole : msg.senderType === 'DRIVER';
             const wrapperClass = isSelf ? 'self' : 'other';
             const author = isSelf ? 'Bạn' : (msg.senderName || msg.senderType);
 
+            // ── Avatar resolution ──────────────────────────────────────────
+            // Driver: dùng senderAvatar từ server nếu có, fallback generated
+            // Customer: hardcode placeholder (chưa có avatar field)
+            const initials = encodeURIComponent((msg.senderName || msg.senderType || '?').substring(0, 2).toUpperCase());
+            let avatarSrc;
+            if (msg.senderType === 'DRIVER') {
+                avatarSrc = msg.senderAvatar
+                    || `https://ui-avatars.com/api/?name=${initials}&background=6C5CE7&color=fff&size=68&bold=true&rounded=true`;
+            } else {
+                // Customer placeholder — màu teal cố định
+                avatarSrc = msg.senderAvatar
+                    || `https://ui-avatars.com/api/?name=${initials}&background=00b894&color=fff&size=68&bold=true&rounded=true`;
+            }
+            // ────────────────────────────────────────────────────────────────
+
             return `
                 <div class="bubble-wrapper ${wrapperClass}">
-                    <div class="chat-metadata">${author} • ${time}</div>
-                    <div class="chat-bubble">${msg.message}</div>
+                    <img class="chat-avatar" src="${avatarSrc}" alt="${author}" title="${author}" />
+                    <div class="bubble-content">
+                        <div class="chat-metadata">${author} • ${time}</div>
+                        <div class="chat-bubble">${msg.message}</div>
+                    </div>
                 </div>
             `;
         }
@@ -909,7 +1006,68 @@
             log(`📍 Sent location: ${lat}, ${lng}`, 'send');
         }
 
-        // Override subscribeToChannel to handle incoming chat bubbles
+        // ============ MARK AS READ ============
+        async function markAsRead() {
+            const orderId = document.getElementById('chatOrderId').value;
+            if (!orderId) return;
+            if (!currentUserId) {
+                log('⚠️ Không thể mark as read: chưa xác định được userId.', 'error');
+                return;
+            }
+            const gatewayUrl = document.getElementById('gatewayUrl').value;
+            try {
+                const response = await fetch(`${gatewayUrl}/api/v1/chat/order/${orderId}/read?userId=${currentUserId}`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': 'Bearer ' + accessToken }
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                log(`✅ Đã đánh dấu đọc hết tin nhắn cho order #${orderId}`, 'success');
+                updateUnreadBadge(0);
+            } catch (e) {
+                log(`❌ Lỗi mark as read: ${e.message}`, 'error');
+            }
+        }
+
+        async function fetchUnreadCount(orderId) {
+            if (!currentUserId) return;
+            const gatewayUrl = document.getElementById('gatewayUrl').value;
+            try {
+                const response = await fetch(`${gatewayUrl}/api/v1/chat/order/${orderId}/unread?userId=${currentUserId}`, {
+                    headers: { 'Authorization': 'Bearer ' + accessToken }
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const count = await response.json();
+                updateUnreadBadge(count);
+            } catch (e) {
+                log(`⚠️ Không thể lấy unread count: ${e.message}`, 'error');
+            }
+        }
+
+        function updateUnreadBadge(count) {
+            const badge = document.getElementById('unreadBadge');
+            if (count > 0) {
+                badge.textContent = count > 99 ? '99+' : count;
+                badge.classList.add('visible');
+            } else {
+                badge.classList.remove('visible');
+            }
+        }
+
+        // Auto mark-as-read khi con trỏ đang nhấp nháy trong ô nhập liệu
+        function onChatFocus() {
+            const badge = document.getElementById('unreadBadge');
+            const hasUnread = badge.classList.contains('visible');
+            if (hasUnread) {
+                markAsRead();
+            }
+        }
+
+        // Khi rời khỏi ô nhập liệu, tin nhắn mới đến sẽ tính là chưa đọc — badge tự cập nhật trong subscribeToChannel
+        function onChatBlur() {
+            // Không cần xử lý gì thêm — badge tự tăng khi tin mới đến và textarea không focus
+        }
+
+        // ============ SUBSCRIBE TO CHANNEL ============
         function subscribeToChannel(destination, label) {
             if (subscriptions[destination]) return;
 
@@ -930,6 +1088,21 @@
                     }
 
                     const myRole = currentUserRole;
+
+                    // Nếu tin nhắn đến từ người khác và textarea KHÔNG đang được focus → tăng badge
+                    const isFromOther = body.senderType && body.senderType !== currentUserRole;
+                    const isChatInputFocused = document.activeElement === document.getElementById('chatMessage');
+                    if (isFromOther) {
+                        if (isChatInputFocused) {
+                            // Đang nhìn vào chat → tự động mark as read ngay
+                            markAsRead();
+                        } else {
+                            // Không focus → tăng badge chưa đọc
+                            const badge = document.getElementById('unreadBadge');
+                            const currentCount = parseInt(badge.textContent) || 0;
+                            updateUnreadBadge(currentCount + 1);
+                        }
+                    }
                     
                     historyBox.innerHTML += renderBubble({
                         message: body.message,

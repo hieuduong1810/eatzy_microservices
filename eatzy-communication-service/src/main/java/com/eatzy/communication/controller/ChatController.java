@@ -71,6 +71,8 @@ public class ChatController {
                 message.setSenderName(getNestedString(orderMap, "customer", "name"));
             }
             message.setSenderType("CUSTOMER");
+            // Customer avatar: not yet available in order data, frontend will use placeholder
+            message.setSenderAvatar(null);
         } else {
             message.setSenderId(getNestedLong(orderMap, "driver", "id"));
             message.setRecipientId(getNestedLong(orderMap, "customer", "id"));
@@ -78,6 +80,8 @@ public class ChatController {
                 message.setSenderName(getNestedString(orderMap, "driver", "name"));
             }
             message.setSenderType("DRIVER");
+            // Driver avatar: from driverProfile.profilePhoto, mapped as driver.avatar in order response
+            message.setSenderAvatar(getNestedString(orderMap, "driver", "avatar"));
         }
 
         // Push via Factory

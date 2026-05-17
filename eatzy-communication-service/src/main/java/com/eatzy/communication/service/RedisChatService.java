@@ -27,6 +27,7 @@ public class RedisChatService {
 
     private static final String CHAT_KEY_PREFIX = "chat:order:";
     private static final String CHAT_KEY_SUFFIX = ":messages";
+    private static final String READ_KEY_SUFFIX = ":read:";
     private static final long TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
     public RedisChatService(RedisTemplate<String, Object> redisTemplate, ObjectMapper objectMapper) {
@@ -106,7 +107,43 @@ public class RedisChatService {
         }
     }
 
+    /**
+     * Mark all current messages as read for a specific user.
+     * Saves the current total message count as the user's last-read index.
+     */
+    public void markAsRead(Long orderId, Long userId) {
+        try {
+            Long total = getMessageCount(orderId);
+            String readKey = buildReadKey(orderId, userId);
+            redisTemplate.opsForValue().set(readKey, String.valueOf(total), TTL_SECONDS, TimeUnit.SECONDS);
+            log.debug("✅ Marked {} messages as read for user {} on order {}", total, userId, orderId);
+        } catch (Exception e) {
+            log.error("Failed to mark messages as read for user {} on order {}", userId, orderId, e);
+        }
+    }
+
+    /**
+     * Returns the number of unread messages for a specific user in an order.
+     * unread = totalMessages - lastReadIndex
+     */
+    public long getUnreadCount(Long orderId, Long userId) {
+        try {
+            Long total = getMessageCount(orderId);
+            String readKey = buildReadKey(orderId, userId);
+            Object raw = redisTemplate.opsForValue().get(readKey);
+            long lastRead = raw != null ? Long.parseLong(raw.toString()) : 0L;
+            return Math.max(0, total - lastRead);
+        } catch (Exception e) {
+            log.error("Failed to get unread count for user {} on order {}", userId, orderId, e);
+            return 0L;
+        }
+    }
+
     private String buildKey(Long orderId) {
         return CHAT_KEY_PREFIX + orderId + CHAT_KEY_SUFFIX;
+    }
+
+    private String buildReadKey(Long orderId, Long userId) {
+        return CHAT_KEY_PREFIX + orderId + READ_KEY_SUFFIX + userId;
     }
 }

@@ -16,7 +16,8 @@ public class ChatMessageDTO {
     private Long senderId;
     private Long recipientId;  // set by server from order data
     private String senderName;
-    private String senderType; // "DRIVER" or "CUSTOMER"
+    private String senderType;   // "DRIVER" or "CUSTOMER"
+    private String senderAvatar; // URL of sender's profile picture (populated by server from order data)
     private String message;
     private Instant timestamp;
     private String messageType; // "TEXT", "IMAGE", "LOCATION"

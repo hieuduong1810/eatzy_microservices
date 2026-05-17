@@ -3,8 +3,6 @@ x-env-mapping: &env-mapping
   EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eatzy-discovery-server:8761/eureka/
   DB_HOST: host.docker.internal
   DB_PORT: 3307
-  REDIS_HOST: redis
-  REDIS_PORT: 6379
   KAFKA_BOOTSTRAP_SERVERS: kafka:29092
   SPRING_CONFIG_IMPORT: optional:configserver:http://eatzy-config-server:8888
   JWT_KEYSTORE_PATH: file:/app/eatzy.jks
@@ -54,15 +52,15 @@ services:
   #     timeout: 5s
   #     retries: 5
 
-  redis:
-    image: redis:7-alpine
-    container_name: redis
-    restart: always
-    env_file:
-      - .env
-    command: sh -c 'redis-server --requirepass "$${REDIS_PASSWORD:-}"'
-    ports:
-      - "6379:6379"
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: redis
+  #   restart: always
+  #   env_file:
+  #     - .env
+  #   command: sh -c 'redis-server --requirepass "$${REDIS_PASSWORD:-}"'
+  #   ports:
+  #     - "6379:6379"
 
   # adminer:
   #   image: adminer:latest
@@ -142,7 +140,6 @@ services:
     depends_on:
       - eatzy-discovery-server
       - eatzy-config-server
-      - redis
       - kafka
     env_file:
       - .env
@@ -181,7 +178,6 @@ services:
     depends_on:
       - eatzy-discovery-server
       - eatzy-config-server
-      - redis
       - kafka
     env_file:
       - .env
@@ -200,7 +196,6 @@ services:
     depends_on:
       - eatzy-discovery-server
       - eatzy-config-server
-      - redis
       - kafka
     env_file:
       - .env
@@ -300,21 +295,15 @@ services:
       INSTANCE_HOST: eatzy-ai-service
       API_GATEWAY_URL: http://eatzy-api-gateway:8080
 
-  # ==========================================
-  # =========== LOGGING & TRACING ============
-  # ==========================================
+#   # ==========================================
+#   # =========== LOGGING & TRACING ============
+#   # ==========================================
 #   elasticsearch:
 #     image: docker.elastic.co/elasticsearch/elasticsearch:8.17.3
 #     container_name: elasticsearch
 #     environment:
 #       - discovery.type=single-node
 #       - ES_JAVA_OPTS=-Xms512m -Xmx512m
-#       - xpack.security.enabled=false
-#   elasticsearch:
-#     image: docker.elastic.co/elasticsearch/elasticsearch:8.17.3
-#     container_name: elasticsearch
-#     environment:
-#       - discovery.type=single-node
 #       - xpack.security.enabled=false
 #     ports:
 #       - "9200:9200"
@@ -353,18 +342,18 @@ services:
 #     ports:
 #       - "9411:9411"
 
-  # ==========================================
-  # =============== MONITORING ===============
-  # ==========================================
+#   # ==========================================
+#   # =============== MONITORING ===============
+#   # ==========================================
 #   prometheus:
 #     image: prom/prometheus:latest
 #     container_name: prometheus
 #     ports:
 #       - "9090:9090"
 #     volumes:
-      # Cấu hình chính
+#       # Cấu hình chính
 #       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      # Các rule alert
+#       # Các rule alert
 #       - ./monitoring/prometheus/alert.rules.yml:/etc/prometheus/alert.rules.yml:ro
 #     command:
 #       - "--config.file=/etc/prometheus/prometheus.yml"
@@ -387,12 +376,12 @@ services:
 #     ports:
 #       - "3000:3000"
 #     environment:
-      # thay đổi nếu cần, ví dụ mật khẩu admin
+#       # thay đổi nếu cần, ví dụ mật khẩu admin
 #       - GF_SECURITY_ADMIN_PASSWORD=admin
 #     volumes:
-      # Lưu trữ dữ liệu Grafana (dashboard, user, setting…)
+#       # Lưu trữ dữ liệu Grafana (dashboard, user, setting…)
 #       - grafana-storage:/var/lib/grafana
-      # Cấu hình provisioning: datasource + dashboards
+#       # Cấu hình provisioning: datasource + dashboards
 #       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
 #     depends_on:
 #       - prometheus

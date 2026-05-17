@@ -58,6 +58,7 @@ public class ResOrderDTO {
         private long id;
         private String name;
         private String email;
+        private String avatar;   // driver's profile photo URL (from driverProfile.profilePhoto)
         private String vehicleType;
         private String vehicleDetails;
         private String averageRating;

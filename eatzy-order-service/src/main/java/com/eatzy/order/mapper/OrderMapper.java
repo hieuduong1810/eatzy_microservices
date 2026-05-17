@@ -165,15 +165,11 @@ public class OrderMapper {
                             driver.setVehicleLicensePlate(getStringValue(driverProfile, "vehicleLicensePlate"));
                         }
                         driver.setVehicleDetails(getStringValue(driverProfile, "vehicleDetails"));
-                        if (driver.getPhoneNumber() == null && driverProfileUser != null) {
-                            driver.setPhoneNumber(getStringValue(driverProfileUser, "phoneNumber"));
-                            if (driver.getPhoneNumber() == null) {
-                                driver.setPhoneNumber(getStringValue(driverProfileUser, "phone_number"));
-                            }
-                        }
+                        // Driver avatar: from driverProfile.profile_photo (snake_case key)
+                        driver.setAvatar(getStringValue(driverProfile, "profile_photo"));
                     }
                     log.info(
-                            "[OrderMapper] Mapped driver for orderId={}, driverId={}, name={}, email={}, phoneNumber={}, vehicleType={}, vehicleDetails={}, averageRating={}, completedTrips={}, vehicleLicensePlate={}",
+                            "[OrderMapper] Mapped driver for orderId={}, driverId={}, name={}, email={}, phoneNumber={}, vehicleType={}, vehicleDetails={}, averageRating={}, completedTrips={}, vehicleLicensePlate={}, avatar={}",
                             order.getId(),
                             order.getDriverId(),
                             driver.getName(),
@@ -183,7 +179,9 @@ public class OrderMapper {
                             driver.getVehicleDetails(),
                             driver.getAverageRating(),
                             driver.getCompletedTrips(),
-                            driver.getVehicleLicensePlate());
+                            driver.getVehicleLicensePlate(),
+                            driver.getAvatar());
+                    log.info("[OrderMapper] Raw driverProfile for driverId={}: {}", order.getDriverId(), driverProfile);
                     dto.setDriver(driver);
                 }
             } catch (Exception e) {
