@@ -30,6 +30,9 @@ dependencies {
     // OpenFeign (for calling other services)
     implementation("org.springframework.cloud:spring-cloud-starter-openfeign")
 
+    // Kafka
+    implementation("org.springframework.kafka:spring-kafka")
+
     // Spring Filter (ho tro @Filter Specification tren Controller)
     implementation("com.turkraft.springfilter:jpa:3.1.7")
 

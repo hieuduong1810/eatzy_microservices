@@ -17,21 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserScoringController {
 
     private final UserScoringService userScoringService;
-
     @PostMapping("/batch-scores")
     public ResponseEntity<BatchScoreResponseDTO> getBatchScores(@RequestBody BatchScoreRequestDTO request) {
         return ResponseEntity.ok(userScoringService.getBatchScores(request));
-    }
-    
-    @PostMapping("/track/search")
-    public ResponseEntity<Void> trackSearch(@RequestBody ScoringEventDTO event) {
-        userScoringService.trackSearchRestaurantByNameAndClick(event);
-        return ResponseEntity.ok().build();
-    }
-    
-    @PostMapping("/track/view")
-    public ResponseEntity<Void> trackView(@RequestBody ScoringEventDTO event) {
-        userScoringService.trackViewRestaurantDetails(event);
-        return ResponseEntity.ok().build();
     }
 }

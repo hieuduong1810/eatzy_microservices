@@ -63,6 +63,20 @@ public class KafkaConsumerService {
         }
     }
 
+    @KafkaListener(topics = "review_score_topic", groupId = "interaction-group")
+    public void consumeReviewScoreEvent(Map<String, Object> event) {
+        try {
+            String action = (String) event.get("action");
+            if ("RATED".equals(action)) {
+                ScoringEventDTO dto = mapToScoringEvent(event);
+                Integer rating = event.get("rating") != null ? Integer.valueOf(event.get("rating").toString()) : null;
+                userScoringService.trackRating(dto, rating);
+            }
+        } catch (Exception e) {
+            log.error("Failed to process review score event: {}", e.getMessage());
+        }
+    }
+
     private ScoringEventDTO mapToScoringEvent(Map<String, Object> event) {
         Long userId = event.get("userId") != null ? Long.valueOf(event.get("userId").toString()) : null;
         Long restaurantId = event.get("restaurantId") != null ? Long.valueOf(event.get("restaurantId").toString()) : null;

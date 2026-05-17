@@ -244,7 +244,7 @@ public class ReviewService {
         // 6. Update user score if restaurant
         if (reviewTarget.equals("restaurant")) {
             ScoringEventDTO scoreEvent = new ScoringEventDTO(customerId, restaurantId, restaurantTypeIds);
-            userScoringService.trackRating(scoreEvent, review.getRating());
+            kafkaProducerService.publishReviewScoreEvent(scoreEvent, review.getRating());
         }
 
         // 7. Publish review event to Kafka for Restaurant/Auth services to update

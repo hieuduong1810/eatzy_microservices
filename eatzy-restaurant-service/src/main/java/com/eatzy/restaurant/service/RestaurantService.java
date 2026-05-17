@@ -23,7 +23,9 @@ import com.eatzy.restaurant.dto.res.ResRestaurantMagazineDTO;
 import com.eatzy.restaurant.client.InteractionServiceClient;
 import com.eatzy.restaurant.client.dto.BatchScoreRequestDTO;
 import com.eatzy.restaurant.client.dto.BatchScoreResponseDTO;
+import com.eatzy.restaurant.client.dto.BatchScoreResponseDTO;
 import com.eatzy.common.util.SecurityUtils;
+import com.eatzy.restaurant.kafka.RestaurantEventProducer;
 import com.eatzy.restaurant.mapper.RestaurantMapper;
 import com.eatzy.restaurant.repository.RestaurantRepository;
 
@@ -46,6 +48,7 @@ public class RestaurantService {
     private final GuestRankingStrategy guestRankingStrategy;
     private final PersonalizedRankingStrategy personalizedRankingStrategy;
     private final InteractionServiceClient interactionServiceClient;
+    private final RestaurantEventProducer restaurantEventProducer;
 
     public RestaurantService(RestaurantRepository restaurantRepository,
             ApplicationEventPublisher eventPublisher,
@@ -54,7 +57,8 @@ public class RestaurantService {
             RestaurantMapper restaurantMapper,
             GuestRankingStrategy guestRankingStrategy,
             PersonalizedRankingStrategy personalizedRankingStrategy,
-            InteractionServiceClient interactionServiceClient) {
+            InteractionServiceClient interactionServiceClient,
+            RestaurantEventProducer restaurantEventProducer) {
         this.restaurantRepository = restaurantRepository;
         this.eventPublisher = eventPublisher;
         this.mapboxService = mapboxService;
@@ -63,6 +67,7 @@ public class RestaurantService {
         this.guestRankingStrategy = guestRankingStrategy;
         this.personalizedRankingStrategy = personalizedRankingStrategy;
         this.interactionServiceClient = interactionServiceClient;
+        this.restaurantEventProducer = restaurantEventProducer;
     }
 
     // ==================== CRUD ====================
@@ -281,6 +286,20 @@ public class RestaurantService {
             log.trace("User unauthenticated for nearby restaurants search");
         }
 
+        // Publish search events if keyword is provided and user is authenticated
+        if (userId != null && keyword != null && !keyword.trim().isEmpty()) {
+            final Long currentUserId = userId;
+            final String lowerKeyword = keyword.trim().toLowerCase();
+            restaurants.forEach(r -> {
+                List<Long> typeIds = r.getRestaurantTypes().stream().map(t -> t.getId()).collect(Collectors.toList());
+                if (r.getName().toLowerCase().contains(lowerKeyword)) {
+                    restaurantEventProducer.publishSearchEvent("RESTAURANT_CLICKED", currentUserId, r.getId(), typeIds);
+                } else {
+                    restaurantEventProducer.publishSearchEvent("DISH_CLICKED", currentUserId, r.getId(), typeIds);
+                }
+            });
+        }
+
         // 2. Ap dung Design Pattern: Strategy Pattern cho Ranking mac dinh
         List<ResRestaurantMagazineDTO> rankedList;
         if (userId != null) {
@@ -348,6 +367,18 @@ public class RestaurantService {
     public ResRestaurantDTO getRestaurantDTOBySlug(String slug) throws IdInvalidException {
         Restaurant restaurant = restaurantRepository.findBySlug(slug)
                 .orElseThrow(() -> new IdInvalidException("Restaurant not found by slug: " + slug));
+                
+        // Track RESTAURANT_VIEWED event
+        try {
+            Long userId = SecurityUtils.getCurrentUserId();
+            if (userId != null) {
+                List<Long> typeIds = restaurant.getRestaurantTypes().stream().map(t -> t.getId()).collect(Collectors.toList());
+                restaurantEventProducer.publishSearchEvent("RESTAURANT_VIEWED", userId, restaurant.getId(), typeIds);
+            }
+        } catch (Exception e) {
+            log.trace("Could not track view event (maybe unauthenticated)");
+        }
+        
         return restaurantMapper.convertToDTO(restaurant);
     }
 

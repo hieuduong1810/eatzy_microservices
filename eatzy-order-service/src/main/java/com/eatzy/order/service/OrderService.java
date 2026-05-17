@@ -124,7 +124,37 @@ public class OrderService {
         Specification<Order> baseSpec = (root, query, cb) -> cb.equal(root.get("customerId"), customerId);
         Specification<Order> combinedSpec = spec != null ? baseSpec.and(spec) : baseSpec;
         Page<Order> page = orderRepository.findAll(combinedSpec, pageable);
-        return buildPaginationResult(page, pageable);
+
+        // Map to DTO then enrich driver location from Redis for each order that has a driver
+        ResultPaginationDTO result = new ResultPaginationDTO();
+        ResultPaginationDTO.Meta meta = new ResultPaginationDTO.Meta();
+        meta.setPage(pageable.getPageNumber() + 1);
+        meta.setPageSize(pageable.getPageSize());
+        meta.setTotal(page.getTotalElements());
+        meta.setPages(page.getTotalPages());
+        result.setMeta(meta);
+
+        List<ResOrderDTO> orders = page.getContent().stream()
+                .map(orderMapper::toResOrderDTO)
+                .peek(dto -> {
+                    if (dto.getDriver() != null && dto.getDriver().getId() > 0) {
+                        try {
+                            org.springframework.data.geo.Point point =
+                                    redisGeoService.getDriverLocation(dto.getDriver().getId());
+                            if (point != null) {
+                                dto.getDriver().setLatitude(point.getY()); // Y = latitude
+                                dto.getDriver().setLongitude(point.getX()); // X = longitude
+                            }
+                        } catch (Exception e) {
+                            log.warn("Could not fetch Redis location for driver {}: {}",
+                                    dto.getDriver().getId(), e.getMessage());
+                        }
+                    }
+                })
+                .collect(Collectors.toList());
+
+        result.setResult(orders);
+        return result;
     }
 
     public ResultPaginationDTO getOrdersDTOByDriverIdWithSpec(Long driverId, Specification<Order> spec,

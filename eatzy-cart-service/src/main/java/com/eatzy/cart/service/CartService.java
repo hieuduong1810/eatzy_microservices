@@ -9,6 +9,9 @@ import com.eatzy.common.dto.ResultPaginationDTO;
 import com.eatzy.common.util.SecurityUtils;
 import com.eatzy.cart.mapper.CartMapper;
 import com.eatzy.cart.repository.CartRepository;
+import com.eatzy.cart.kafka.CartEventProducer;
+import com.eatzy.cart.designpattern.adapter.RestaurantServiceClient;
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -29,6 +32,8 @@ public class CartService {
 
     private final CartRepository cartRepository;
     private final CartMapper cartMapper;
+    private final CartEventProducer cartEventProducer;
+    private final RestaurantServiceClient restaurantServiceClient;
 
     public List<ResCartDTO> getCartsByCustomerId(Long customerId) {
         return cartRepository.findByCustomerIdOrderByIdDesc(customerId).stream()
@@ -121,6 +126,25 @@ public class CartService {
 
             Cart savedCart = cartRepository.save(cart);
             log.info("🛒 User updated cart for restaurant {}", restaurantId);
+            
+            // Publish ITEM_ADDED event for user scoring
+            try {
+                java.util.Map<String, Object> restData = restaurantServiceClient.getRestaurantById(restaurantId);
+                java.util.List<Long> typeIds = new java.util.ArrayList<>();
+                if (restData != null && restData.containsKey("restaurantTypes")) {
+                    java.util.List<java.util.Map<String, Object>> types = (java.util.List<java.util.Map<String, Object>>) restData.get("restaurantTypes");
+                    for (java.util.Map<String, Object> t : types) {
+                        if (t.get("id") != null) {
+                            typeIds.add(Long.valueOf(t.get("id").toString()));
+                        }
+                    }
+                }
+                cartEventProducer.publishItemAddedEvent(customerId, restaurantId, typeIds);
+            } catch (FeignException e) {
+                log.warn("Failed to fetch restaurant details for scoring event: {}", e.getMessage());
+                cartEventProducer.publishItemAddedEvent(customerId, restaurantId, java.util.Collections.emptyList());
+            }
+
             return cartMapper.convertToResCartDTO(savedCart);
         } else {
             if (cart.getId() != null) {
