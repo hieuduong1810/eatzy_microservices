@@ -26,6 +26,13 @@ spring:
       hibernate:
         format_sql: true
 
+  # Kafka Producer
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
 app:
   jwks:
     uri: http://eatzy-auth-service:8081/.well-known/jwks.json
