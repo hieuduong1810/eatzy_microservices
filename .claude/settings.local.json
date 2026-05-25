@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//home/vu/eatzy_microservices/eatzy-auth-service/**)",
+      "Read(///wsl.localhost/Ubuntu/home/vu/eatzy_microservices/eatzy-auth-service/**)",
+      "Read(//home/vu/eatzy_microservices/eatzy-cart-service/**)",
+      "Read(///wsl.localhost/Ubuntu/home/vu/eatzy_microservices/eatzy-cart-service/**)",
+      "Read(//home/vu/eatzy_microservices/eatzy-communication-service/**)",
+      "Read(///wsl.localhost/Ubuntu/home/vu/eatzy_microservices/eatzy-communication-service/**)",
+      "Read(//home/vu/eatzy_microservices/eatzy-config-server/**)",
+      "Read(///wsl.localhost/Ubuntu/home/vu/eatzy_microservices/eatzy-config-server/**)"
+    ]
+  }
+}

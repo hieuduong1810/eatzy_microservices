@@ -1,8 +1,9 @@
 name: CI/CD Eatzy Microservices
 
 on:
-  push:
-    branches: ["main"]
+  # push:
+  #   branches: ["main"]
+  workflow_dispatch: # Tạm disable tự động, dùng Jenkins thay thế
 
 jobs:
   build-and-deploy:
