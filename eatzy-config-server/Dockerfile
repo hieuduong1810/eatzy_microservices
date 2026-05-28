@@ -7,7 +7,7 @@ COPY settings.gradle.kts .
 COPY eatzy-common eatzy-common
 COPY eatzy-config-server eatzy-config-server
 RUN sed -i 's/\r$//' gradlew && chmod +x gradlew
-RUN --mount=type=cache,target=/root/.gradle,sharing=locked ./gradlew :eatzy-config-server:bootJar -x test
+RUN --mount=type=cache,target=/root/.gradle,sharing=locked rm -rf /root/.gradle/wrapper/dists/gradle-* && ./gradlew :eatzy-config-server:bootJar -x test
 
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
