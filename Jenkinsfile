@@ -6,6 +6,29 @@ def runCommand(String unixCommand, String windowsCommand = null) {
     }
 }
 
+def currentBranchName() {
+    return (env.BRANCH_NAME ?: env.GIT_BRANCH ?: 'manual')
+        .replaceFirst('^origin/', '')
+}
+
+def isMainBranch() {
+    return currentBranchName() == 'main'
+}
+
+def dockerSafeTag(String value) {
+    def tag = value
+        .toLowerCase()
+        .replaceAll('[^a-z0-9_.-]+', '-')
+        .replaceAll('(^[-.]+|[-.]+$)', '')
+    return tag ?: 'manual'
+}
+
+def imageTagsForBuild() {
+    def shortCommit = (env.GIT_COMMIT ?: env.BUILD_NUMBER ?: 'local').take(7)
+    def versionTag = "${dockerSafeTag(currentBranchName())}-${shortCommit}"
+    return isMainBranch() ? ['latest', versionTag] : [versionTag]
+}
+
 pipeline {
     agent any
 
@@ -84,15 +107,20 @@ pipeline {
                         services.each { service ->
                             def svc = service
                             parallelBuilds[svc] = {
-                                def imageName = "${env.DOCKER_USER}/${svc}:latest"
+                                def imageBase = "${env.DOCKER_USER}/${svc}"
+                                def tags = imageTagsForBuild()
+                                def tagArgs = tags.collect { tag -> "-t ${imageBase}:${tag}" }.join(' ')
+                                def unixPushCommands = tags.collect { tag -> "docker push ${imageBase}:${tag}" }.join('\n')
+                                def windowsPushCommands = tags.collect { tag -> "docker push ${imageBase}:${tag}" }.join(' && ')
                                 runCommand(
                                     """
                                         echo "Building ${svc}..."
-                                        docker build -t ${imageName} -f ${svc}/Dockerfile . && docker push ${imageName}
+                                        docker build ${tagArgs} -f ${svc}/Dockerfile .
+                                        ${unixPushCommands}
                                     """,
                                     """
                                         echo Building ${svc}...
-                                        docker build -t ${imageName} -f ${svc}/Dockerfile . && docker push ${imageName}
+                                        docker build ${tagArgs} -f ${svc}/Dockerfile . && ${windowsPushCommands}
                                     """
                                 )
                             }
@@ -106,7 +134,7 @@ pipeline {
         stage('Deploy') {
             when {
                 expression {
-                    env.BRANCH_NAME == 'main' || env.GIT_BRANCH == 'main' || env.GIT_BRANCH == 'origin/main'
+                    isMainBranch()
                 }
             }
             steps {
@@ -160,10 +188,10 @@ pipeline {
             }
         }
         success {
-            echo "Pipeline succeeded on branch ${env.BRANCH_NAME}"
+            echo "Pipeline succeeded on branch ${env.BRANCH_NAME ?: env.GIT_BRANCH}"
         }
         failure {
-            echo "Pipeline failed on branch ${env.BRANCH_NAME}"
+            echo "Pipeline failed on branch ${env.BRANCH_NAME ?: env.GIT_BRANCH}"
         }
     }
 }
