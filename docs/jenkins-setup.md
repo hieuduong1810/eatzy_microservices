@@ -1,5 +1,7 @@
 # Jenkins CI/CD Setup Guide — Eatzy Microservices
 
+> **Lưu ý:** Tài liệu này là bản setup Jenkins ban đầu. Với cấu hình hiện tại dùng Jenkins Multibranch Pipeline + GitHub Branch Source, nên đọc bản đầy đủ mới tại [Jenkins + GitHub Full Setup Guide](./jenkins-github-setup-full.md).
+
 ## Tổng quan
 
 Pipeline Jenkins thay thế GitHub Actions, thực hiện 3 giai đoạn tự động khi push code:

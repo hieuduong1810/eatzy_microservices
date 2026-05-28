@@ -29,12 +29,28 @@ def imageTagsForBuild() {
     return isMainBranch() ? ['latest', versionTag] : [versionTag]
 }
 
+def javaServices() {
+    return [
+        'eatzy-discovery-server',
+        'eatzy-config-server',
+        'eatzy-api-gateway',
+        'eatzy-auth-service',
+        'eatzy-restaurant-service',
+        'eatzy-order-service',
+        'eatzy-communication-service',
+        'eatzy-cart-service',
+        'eatzy-payment-service',
+        'eatzy-interaction-service',
+        'eatzy-system-config-service'
+    ]
+}
+
+def dockerServices() {
+    return javaServices() + ['eatzy-ai-service']
+}
+
 pipeline {
     agent any
-
-    triggers {
-        githubPush()
-    }
 
     options {
         timeout(time: 60, unit: 'MINUTES')
@@ -75,6 +91,34 @@ pipeline {
             }
         }
 
+        stage('Build Java Artifacts') {
+            steps {
+                script {
+                    def services = javaServices()
+                    def bootJarTasks = services.collect { service -> ":${service}:bootJar" }.join(' ')
+                    def serviceNames = services.join(' ')
+
+                    runCommand(
+                        """
+                            rm -rf docker-artifacts
+                            ./gradlew ${bootJarTasks} --parallel -x test
+                            mkdir -p docker-artifacts
+                            for svc in ${serviceNames}; do
+                                jar=\$(find "\$svc/build/libs" -maxdepth 1 -name '*.jar' ! -name '*-plain.jar' | head -n 1)
+                                cp "\$jar" "docker-artifacts/\$svc.jar"
+                            done
+                        """,
+                        """
+                            if exist docker-artifacts rmdir /s /q docker-artifacts
+                            gradlew.bat ${bootJarTasks} --parallel -x test
+                            mkdir docker-artifacts
+                            for %%S in (${serviceNames}) do for %%J in (%%S\\build\\libs\\*.jar) do echo %%~nxJ | findstr /v /c:"-plain.jar" >nul && copy /Y "%%J" "docker-artifacts\\%%S.jar"
+                        """
+                    )
+                }
+            }
+        }
+
         stage('Build & Push Docker Images') {
             steps {
                 script {
@@ -88,20 +132,7 @@ pipeline {
                             'echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin'
                         )
 
-                        def services = [
-                            'eatzy-discovery-server',
-                            'eatzy-config-server',
-                            'eatzy-api-gateway',
-                            'eatzy-auth-service',
-                            'eatzy-restaurant-service',
-                            'eatzy-order-service',
-                            'eatzy-communication-service',
-                            'eatzy-cart-service',
-                            'eatzy-payment-service',
-                            'eatzy-interaction-service',
-                            'eatzy-system-config-service',
-                            'eatzy-ai-service'
-                        ]
+                        def services = dockerServices()
 
                         def buildAndPushImage = { svc ->
                             def imageBase = "${env.DOCKER_USER}/${svc}"
