@@ -1,4 +1,5 @@
 # Jenkins CI Pipeline - Eatzy Microservices
+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
 
 Tài liệu này mô tả pipeline CI hiện tại của dự án Eatzy Microservices khi chạy bằng Jenkins Multibranch Pipeline.
 
@@ -222,6 +223,27 @@ docker-artifacts/eatzy-api-gateway.jar
 
 Thư mục `docker-artifacts/` được đưa vào `.gitignore`, chỉ dùng trong workspace Jenkins/local.
 
+### Lưu ý riêng cho Windows agent
+
+Khi chạy lệnh Gradle từ Jenkins `bat`, phải gọi `gradlew.bat` bằng `call`:
+
+```bat
+call gradlew.bat :eatzy-discovery-server:bootJar ... --parallel -x test
+```
+
+Nếu không có `call`, batch script sẽ dừng ngay sau khi `gradlew.bat` kết thúc. Khi đó các lệnh tạo thư mục và copy jar sẽ không chạy, dẫn đến lỗi Docker:
+
+```text
+COPY docker-artifacts/eatzy-discovery-server.jar app.jar
+not found
+```
+
+Log đúng sau stage này phải có đủ 11 dòng dạng:
+
+```text
+1 file(s) copied.
+```
+
 Lý do tách bước này ra khỏi Docker build:
 
 - Không phải tải Gradle wrapper 11 lần trong container.
@@ -256,6 +278,15 @@ COPY docker-artifacts/eatzy-auth-service.jar app.jar
 EXPOSE 8081
 ENTRYPOINT ["java", "-jar", "app.jar"]
 ```
+
+Khi build thành công, Docker log sẽ có dạng:
+
+```text
+COPY docker-artifacts/eatzy-discovery-server.jar app.jar
+DONE
+```
+
+Nếu thấy Docker build context khoảng vài chục đến hơn 100 MB, đó là do Docker vẫn gửi workspace hiện tại làm build context. Pipeline đã nhanh hơn vì không compile trong Docker nữa, nhưng vẫn có thể tối ưu tiếp bằng cách giảm build context nếu cần.
 
 ### Dockerfile AI service
 
@@ -343,6 +374,29 @@ hoặc:
 ```text
 Pipeline failed on branch <branch>
 ```
+
+## Dấu hiệu CI branch feature chạy đúng
+
+Với branch `feat/vu`, log đúng sẽ có các điểm sau:
+
+```text
+Push event to branch feat/vu
+Connecting to https://api.github.com using ...
+BUILD SUCCESSFUL
+1 file(s) copied.
+docker push honguynvu/eatzy-discovery-server:feat-vu-<commit>
+Stage "Deploy" skipped due to when conditional
+Pipeline succeeded on branch feat/vu
+Finished: SUCCESS
+```
+
+Điều này xác nhận:
+
+- Jenkins đã dùng GitHub credential, không còn anonymous API.
+- Test và `bootJar` đã thành công.
+- `docker-artifacts/` đã được tạo đúng.
+- Image branch được push bằng tag riêng.
+- Deploy không chạy trên branch feature.
 
 ## Cách chạy CI trước khi push
 

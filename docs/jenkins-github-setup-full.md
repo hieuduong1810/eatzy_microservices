@@ -456,6 +456,19 @@ Deploy phải bị skip:
 Stage "Deploy" skipped
 ```
 
+Với pipeline đã tối ưu build artifact trước Docker, log đúng còn có:
+
+```text
+Stage "Build Java Artifacts"
+BUILD SUCCESSFUL
+1 file(s) copied.
+COPY docker-artifacts/eatzy-discovery-server.jar app.jar
+Pipeline succeeded on branch feat/vu
+Finished: SUCCESS
+```
+
+Nếu thấy `1 file(s) copied.` lặp lại 11 lần, nghĩa là Jenkins đã copy đủ jar cho 11 Java services.
+
 ## 16. Kiểm tra build main
 
 Push lên `main`:
@@ -580,6 +593,41 @@ zip END header not found
 Nguyên nhân thường là Docker BuildKit cache bị corrupt.
 
 Pipeline mới tránh lỗi này bằng cách build jar trên Jenkins agent, không tải Gradle wrapper trong từng Dockerfile Java nữa.
+
+### Docker không tìm thấy `docker-artifacts/*.jar`
+
+Triệu chứng:
+
+```text
+COPY docker-artifacts/eatzy-discovery-server.jar app.jar
+not found
+```
+
+Nguyên nhân thường gặp trên Windows:
+
+- Stage `Build Java Artifacts` gọi `gradlew.bat` mà không dùng `call`.
+- Batch script dừng sau khi Gradle chạy xong.
+- Lệnh `mkdir docker-artifacts` và `copy /Y ...` không được thực thi.
+
+Cách đúng trong Jenkinsfile:
+
+```bat
+call gradlew.bat :eatzy-discovery-server:bootJar ... --parallel -x test
+mkdir docker-artifacts
+```
+
+Sau khi sửa đúng, log sẽ có:
+
+```text
+1 file(s) copied.
+```
+
+và Docker build sẽ đi qua bước:
+
+```text
+COPY docker-artifacts/eatzy-discovery-server.jar app.jar
+DONE
+```
 
 ### Deploy fail `server-ssh-key` not found
 

@@ -254,6 +254,40 @@ docker-artifacts/eatzy-cart-service.jar
 
 Dockerfile Java sau đó chỉ copy file jar này.
 
+### Vì sao Windows dùng `call gradlew.bat`
+
+Trong Jenkins `bat`, khi gọi một file `.bat` khác, phải dùng `call`:
+
+```bat
+call gradlew.bat :eatzy-discovery-server:bootJar ... --parallel -x test
+```
+
+Nếu chỉ viết:
+
+```bat
+gradlew.bat :eatzy-discovery-server:bootJar ... --parallel -x test
+```
+
+batch script cha sẽ kết thúc ngay sau Gradle. Các lệnh sau đó sẽ không chạy:
+
+```bat
+mkdir docker-artifacts
+copy /Y ...
+```
+
+Kết quả là Docker stage fail vì không tìm thấy jar:
+
+```text
+COPY docker-artifacts/eatzy-discovery-server.jar app.jar
+not found
+```
+
+Log đúng sau khi copy artifact trên Windows sẽ có 11 dòng:
+
+```text
+1 file(s) copied.
+```
+
 ## 12. Stage `Build & Push Docker Images`
 
 Pipeline login Docker Hub bằng:
@@ -392,6 +426,22 @@ Một số lỗi thường gặp:
 | `Cannot run program "sh"` | Jenkins agent là Windows nhưng pipeline dùng `sh` | Dùng `runCommand` với `bat` |
 | `server-ssh-key not found` | Thiếu deploy credential | Tạo credential đúng ID |
 | `Docker login failed` | Sai Docker Hub token | Tạo lại Docker Hub access token |
+| `COPY docker-artifacts/...jar: not found` | Windows batch script dừng sau `gradlew.bat`, chưa copy jar | Dùng `call gradlew.bat ...` trong stage `Build Java Artifacts` |
 | `meta.db input/output error` | Docker Desktop storage lỗi | Restart Docker Desktop, `wsl --shutdown`, prune cache |
 | `zip END header not found` | Gradle wrapper zip trong Docker cache corrupt | Không build Gradle trong Docker nữa, build artifact trước |
 | Deploy skipped | Build branch khác `main` | Đây là hành vi đúng |
+
+## 18. Log thành công hiện tại
+
+Một build branch feature được xem là đúng khi có chuỗi kết quả:
+
+```text
+BUILD SUCCESSFUL in ...s
+1 file(s) copied.
+docker push honguynvu/<service>:feat-vu-<commit>
+Stage "Deploy" skipped due to when conditional
+Pipeline succeeded on branch feat/vu
+Finished: SUCCESS
+```
+
+Nếu branch là `feat/vu`, deploy bị skip là đúng thiết kế. Chỉ `main` mới chạy deploy.
