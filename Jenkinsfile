@@ -103,29 +103,40 @@ pipeline {
                             'eatzy-ai-service'
                         ]
 
-                        def parallelBuilds = [:]
-                        services.each { service ->
-                            def svc = service
-                            parallelBuilds[svc] = {
-                                def imageBase = "${env.DOCKER_USER}/${svc}"
-                                def tags = imageTagsForBuild()
-                                def tagArgs = tags.collect { tag -> "-t ${imageBase}:${tag}" }.join(' ')
-                                def unixPushCommands = tags.collect { tag -> "docker push ${imageBase}:${tag}" }.join('\n')
-                                def windowsPushCommands = tags.collect { tag -> "docker push ${imageBase}:${tag}" }.join(' && ')
-                                runCommand(
-                                    """
-                                        echo "Building ${svc}..."
-                                        docker build ${tagArgs} -f ${svc}/Dockerfile .
-                                        ${unixPushCommands}
-                                    """,
-                                    """
-                                        echo Building ${svc}...
-                                        docker build ${tagArgs} -f ${svc}/Dockerfile . && ${windowsPushCommands}
-                                    """
-                                )
+                        def buildAndPushImage = { svc ->
+                            def imageBase = "${env.DOCKER_USER}/${svc}"
+                            def tags = imageTagsForBuild()
+                            def tagArgs = tags.collect { tag -> "-t ${imageBase}:${tag}" }.join(' ')
+                            def unixPushCommands = tags.collect { tag -> "docker push ${imageBase}:${tag}" }.join('\n')
+                            def windowsPushCommands = tags.collect { tag -> "docker push ${imageBase}:${tag}" }.join(' && ')
+                            runCommand(
+                                """
+                                    echo "Building ${svc}..."
+                                    docker build ${tagArgs} -f ${svc}/Dockerfile .
+                                    ${unixPushCommands}
+                                """,
+                                """
+                                    echo Building ${svc}...
+                                    docker build ${tagArgs} -f ${svc}/Dockerfile . && ${windowsPushCommands}
+                                """
+                            )
+                        }
+
+                        if (isUnix()) {
+                            def parallelBuilds = [:]
+                            services.each { service ->
+                                def svc = service
+                                parallelBuilds[svc] = {
+                                    buildAndPushImage(svc)
+                                }
+                            }
+                            parallel parallelBuilds
+                        } else {
+                            // Docker Desktop on Windows can fail under many simultaneous BuildKit writes.
+                            services.each { service ->
+                                buildAndPushImage(service)
                             }
                         }
-                        parallel parallelBuilds
                     }
                 }
             }
