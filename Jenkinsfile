@@ -110,7 +110,7 @@ pipeline {
                         """,
                         """
                             if exist docker-artifacts rmdir /s /q docker-artifacts
-                            gradlew.bat ${bootJarTasks} --parallel -x test
+                            call gradlew.bat ${bootJarTasks} --parallel -x test
                             mkdir docker-artifacts
                             for %%S in (${serviceNames}) do for %%J in (%%S\\build\\libs\\*.jar) do echo %%~nxJ | findstr /v /c:"-plain.jar" >nul && copy /Y "%%J" "docker-artifacts\\%%S.jar"
                         """
