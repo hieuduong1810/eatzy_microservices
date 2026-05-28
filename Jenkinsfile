@@ -1,3 +1,11 @@
+def runCommand(String unixCommand, String windowsCommand = null) {
+    if (isUnix()) {
+        sh unixCommand
+    } else {
+        bat windowsCommand ?: unixCommand
+    }
+}
+
 pipeline {
     agent any
 
@@ -15,7 +23,12 @@ pipeline {
         stage('Checkout') {
             steps {
                 checkout scm
-                sh 'chmod +x gradlew'
+                script {
+                    runCommand(
+                        'chmod +x gradlew',
+                        'if exist gradlew.bat echo Windows agent detected - skipping chmod'
+                    )
+                }
             }
         }
 
@@ -24,7 +37,12 @@ pipeline {
                 // Hiện tại chưa có unit test thực sự — chạy nhưng không block pipeline.
                 // TODO: Thêm unit test (dùng H2 in-memory hoặc Testcontainers) để stage này có ý nghĩa.
                 catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-                    sh './gradlew test --parallel --continue'
+                    script {
+                        runCommand(
+                            './gradlew test --parallel --continue',
+                            'gradlew.bat test --parallel --continue'
+                        )
+                    }
                 }
             }
             post {
@@ -42,7 +60,10 @@ pipeline {
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_PASS'
                     )]) {
-                        sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                        runCommand(
+                            'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin',
+                            'echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin'
+                        )
 
                         def services = [
                             'eatzy-discovery-server',
@@ -63,11 +84,19 @@ pipeline {
                         services.each { service ->
                             def svc = service
                             parallelBuilds[svc] = {
-                                sh """
-                                    echo "Building ${svc}..."
-                                    docker build -t ${DOCKER_USER}/${svc}:latest -f ${svc}/Dockerfile .
-                                    docker push ${DOCKER_USER}/${svc}:latest
-                                """
+                                def imageName = "${env.DOCKER_USER}/${svc}:latest"
+                                runCommand(
+                                    """
+                                        echo "Building ${svc}..."
+                                        docker build -t ${imageName} -f ${svc}/Dockerfile .
+                                        docker push ${imageName}
+                                    """,
+                                    """
+                                        echo Building ${svc}...
+                                        docker build -t ${imageName} -f ${svc}/Dockerfile .
+                                        docker push ${imageName}
+                                    """
+                                )
                             }
                         }
                         parallel parallelBuilds
@@ -78,7 +107,9 @@ pipeline {
 
         stage('Deploy') {
             when {
-                branch 'main'
+                expression {
+                    env.BRANCH_NAME == 'main' || env.GIT_BRANCH == 'main' || env.GIT_BRANCH == 'origin/main'
+                }
             }
             steps {
                 withCredentials([
@@ -92,21 +123,33 @@ pipeline {
                     string(credentialsId: 'dockerhub-user', variable: 'DOCKER_USER'),
                     file(credentialsId: 'env-file', variable: 'ENV_FILE')
                 ]) {
-                    sh '''
-                        scp -i $SSH_KEY -P $SERVER_PORT -o StrictHostKeyChecking=no \
-                            docker-compose.prod.yml $ENV_FILE \
-                            $SSH_USER@$SERVER_IP:/home/$SSH_USER/projects/eatzy-microservices/
+                    script {
+                        runCommand(
+                            '''
+                                scp -i "$SSH_KEY" -P "$SERVER_PORT" -o StrictHostKeyChecking=no \
+                                    docker-compose.prod.yml \
+                                    "$SSH_USER@$SERVER_IP:/home/$SSH_USER/projects/eatzy-microservices/docker-compose.prod.yml"
 
-                        ssh -i $SSH_KEY -p $SERVER_PORT -o StrictHostKeyChecking=no \
-                            $SSH_USER@$SERVER_IP "
-                                cd /home/$SSH_USER/projects/eatzy-microservices
-                                mv $(basename $ENV_FILE) .env 2>/dev/null || true
-                                export DOCKERHUB_USER=$DOCKER_USER
-                                docker compose -f docker-compose.prod.yml pull
-                                docker compose -f docker-compose.prod.yml up -d
-                                docker image prune -f
-                            "
-                    '''
+                                scp -i "$SSH_KEY" -P "$SERVER_PORT" -o StrictHostKeyChecking=no \
+                                    "$ENV_FILE" \
+                                    "$SSH_USER@$SERVER_IP:/home/$SSH_USER/projects/eatzy-microservices/.env"
+
+                                ssh -i "$SSH_KEY" -p "$SERVER_PORT" -o StrictHostKeyChecking=no \
+                                    "$SSH_USER@$SERVER_IP" "
+                                        cd /home/$SSH_USER/projects/eatzy-microservices
+                                        export DOCKERHUB_USER=$DOCKER_USER
+                                        docker compose -f docker-compose.prod.yml pull
+                                        docker compose -f docker-compose.prod.yml up -d
+                                        docker image prune -f
+                                    "
+                            ''',
+                            '''
+                                scp -i "%SSH_KEY%" -P %SERVER_PORT% -o StrictHostKeyChecking=no docker-compose.prod.yml "%SSH_USER%@%SERVER_IP%:/home/%SSH_USER%/projects/eatzy-microservices/docker-compose.prod.yml"
+                                scp -i "%SSH_KEY%" -P %SERVER_PORT% -o StrictHostKeyChecking=no "%ENV_FILE%" "%SSH_USER%@%SERVER_IP%:/home/%SSH_USER%/projects/eatzy-microservices/.env"
+                                ssh -i "%SSH_KEY%" -p %SERVER_PORT% -o StrictHostKeyChecking=no "%SSH_USER%@%SERVER_IP%" "cd /home/%SSH_USER%/projects/eatzy-microservices && export DOCKERHUB_USER=%DOCKER_USER% && docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d && docker image prune -f"
+                            '''
+                        )
+                    }
                 }
             }
         }
@@ -114,7 +157,9 @@ pipeline {
 
     post {
         always {
-            sh 'docker logout || true'
+            script {
+                runCommand('docker logout || true', 'docker logout || exit /b 0')
+            }
         }
         success {
             echo "Pipeline succeeded on branch ${env.BRANCH_NAME}"
