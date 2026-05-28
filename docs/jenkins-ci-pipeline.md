@@ -1,5 +1,4 @@
 # Jenkins CI Pipeline - Eatzy Microservices
-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
 
 Tài liệu này mô tả pipeline CI hiện tại của dự án Eatzy Microservices khi chạy bằng Jenkins Multibranch Pipeline.
 
