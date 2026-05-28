@@ -6,7 +6,7 @@ COPY build.gradle.kts .
 COPY settings.gradle.kts .
 COPY eatzy-common eatzy-common
 COPY eatzy-cart-service eatzy-cart-service
-RUN chmod +x gradlew
+RUN sed -i 's/\r$//' gradlew && chmod +x gradlew
 RUN --mount=type=cache,target=/root/.gradle,sharing=locked ./gradlew :eatzy-cart-service:bootJar -x test
 
 FROM eclipse-temurin:17-jre-alpine

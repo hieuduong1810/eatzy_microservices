@@ -88,13 +88,11 @@ pipeline {
                                 runCommand(
                                     """
                                         echo "Building ${svc}..."
-                                        docker build -t ${imageName} -f ${svc}/Dockerfile .
-                                        docker push ${imageName}
+                                        docker build -t ${imageName} -f ${svc}/Dockerfile . && docker push ${imageName}
                                     """,
                                     """
                                         echo Building ${svc}...
-                                        docker build -t ${imageName} -f ${svc}/Dockerfile .
-                                        docker push ${imageName}
+                                        docker build -t ${imageName} -f ${svc}/Dockerfile . && docker push ${imageName}
                                     """
                                 )
                             }
