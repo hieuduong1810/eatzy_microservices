@@ -57,7 +57,7 @@ class RestaurantServiceTest {
         when(restaurantMapper.convertToDTO(r)).thenReturn(dto);
 
         // Prepare SecurityContext with Jwt principal containing user.id claim
-        Jwt jwt = new Jwt("token", Instant.now(), Instant.now().plusSeconds(3600), Map.of(), Map.of("user", Map.of("id", 123)));
+        Jwt jwt = new Jwt("token", Instant.now(), Instant.now().plusSeconds(3600), Map.of("alg", "none"), Map.of("user", Map.of("id", 123)));
         UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(jwt, "n/a", List.of());
         SecurityContext securityContext = SecurityContextHolder.createEmptyContext();
         securityContext.setAuthentication(auth);

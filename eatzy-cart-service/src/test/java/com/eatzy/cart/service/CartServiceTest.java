@@ -48,7 +48,7 @@ class CartServiceTest {
     @Test
     void saveOrUpdateCart_createsCartAndPublishesEvent_withRestaurantTypes() throws Exception {
         // prepare security context
-        Jwt jwt = new Jwt("token", Instant.now(), Instant.now().plusSeconds(3600), Map.of(), Map.of("user", Map.of("id", 42)));
+        Jwt jwt = new Jwt("token", Instant.now(), Instant.now().plusSeconds(3600), Map.of("alg", "none"), Map.of("user", Map.of("id", 42)));
         UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(jwt, "n/a", List.of());
         SecurityContext securityContext = SecurityContextHolder.createEmptyContext();
         securityContext.setAuthentication(auth);
@@ -83,7 +83,7 @@ class CartServiceTest {
 
     @Test
     void saveOrUpdateCart_whenRestaurantServiceReturnsNull_publishesEventWithEmptyTypes() throws Exception {
-        Jwt jwt = new Jwt("token", Instant.now(), Instant.now().plusSeconds(3600), Map.of(), Map.of("user", Map.of("id", 99)));
+        Jwt jwt = new Jwt("token", Instant.now(), Instant.now().plusSeconds(3600), Map.of("alg", "none"), Map.of("user", Map.of("id", 99)));
         UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(jwt, "n/a", List.of());
         SecurityContext securityContext = SecurityContextHolder.createEmptyContext();
         securityContext.setAuthentication(auth);
