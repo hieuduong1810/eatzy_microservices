@@ -162,6 +162,11 @@ pipeline {
         }
 
         stage('Build & Push Docker Images') {
+            when {
+                expression {
+                    isMainBranch()
+                }
+            }
             steps {
                 script {
                     withCredentials([usernamePassword(
