@@ -52,7 +52,7 @@ def dockerServices() {
 def lastCommitAuthorEmail() {
     def email = isUnix()
         ? sh(script: 'git log -1 --pretty=format:%ae', returnStdout: true).trim()
-        : bat(script: '@git log -1 --pretty=format:%ae', returnStdout: true).trim()
+        : bat(script: '@git log -1 --pretty=format:%%ae', returnStdout: true).trim()
     return email.contains('@') ? email : ''
 }
 
@@ -64,6 +64,9 @@ def notifyBuildRequester() {
     def result = currentBuild.currentResult ?: 'UNKNOWN'
     def branch = env.BRANCH_NAME ?: env.GIT_BRANCH ?: 'manual'
     def directRecipient = isUserTriggeredBuild() ? '' : lastCommitAuthorEmail()
+    if (directRecipient) {
+        echo "Sending build notification to commit author: ${directRecipient}"
+    }
     def subject = "[${result}] ${env.JOB_NAME} #${env.BUILD_NUMBER}"
     def body = """
         <p>Build <b>${result}</b></p>
