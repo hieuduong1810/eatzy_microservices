@@ -68,7 +68,7 @@ def notifyBuildRequester() {
             subject: subject,
             body: body,
             mimeType: 'text/html',
-            recipientProviders: [requestor()]
+            recipientProviders: [requestor(), developers()]
         )
     } catch (err) {
         echo "Could not send build notification email: ${err.message}"
