@@ -4,7 +4,7 @@ import com.eatzy.order.dto.response.ResDeliveryFeeDTO;
 import com.eatzy.order.designpattern.template.DefaultDeliveryFeeCalculator;
 import com.eatzy.order.designpattern.adapter.RestaurantServiceClient;
 import com.eatzy.common.service.MapboxService;
-import com.eatzy.order.designpattern.DynamicPricingService;
+import com.eatzy.order.service.DynamicPricingService;
 import com.eatzy.order.designpattern.adapter.SystemConfigServiceClient;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
