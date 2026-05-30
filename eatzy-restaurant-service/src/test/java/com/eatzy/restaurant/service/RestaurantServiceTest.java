@@ -12,12 +12,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -49,6 +50,7 @@ class RestaurantServiceTest {
         Restaurant r = new Restaurant();
         r.setId(10L);
         r.setName("Phở Bò Gia Truyền 24h");
+        r.setRestaurantTypes(List.of(com.eatzy.restaurant.domain.RestaurantType.builder().id(7L).name("Noodles").build()));
         when(restaurantRepository.findBySlug(slug)).thenReturn(Optional.of(r));
 
         ResRestaurantDTO dto = ResRestaurantDTO.builder().id(10L).name("Phở Bò").build();
@@ -56,10 +58,9 @@ class RestaurantServiceTest {
 
         // Prepare SecurityContext with Jwt principal containing user.id claim
         Jwt jwt = new Jwt("token", Instant.now(), Instant.now().plusSeconds(3600), Map.of(), Map.of("user", Map.of("id", 123)));
-        Authentication auth = mock(Authentication.class);
-        when(auth.getPrincipal()).thenReturn(jwt);
-        SecurityContext securityContext = mock(SecurityContext.class);
-        when(securityContext.getAuthentication()).thenReturn(auth);
+        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(jwt, "n/a", List.of());
+        SecurityContext securityContext = SecurityContextHolder.createEmptyContext();
+        securityContext.setAuthentication(auth);
         SecurityContextHolder.setContext(securityContext);
 
         ResRestaurantDTO result = restaurantService.getRestaurantDTOBySlug(slug);
