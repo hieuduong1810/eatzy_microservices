@@ -13,7 +13,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -49,10 +49,9 @@ class CartServiceTest {
     void saveOrUpdateCart_createsCartAndPublishesEvent_withRestaurantTypes() throws Exception {
         // prepare security context
         Jwt jwt = new Jwt("token", Instant.now(), Instant.now().plusSeconds(3600), Map.of(), Map.of("user", Map.of("id", 42)));
-        Authentication auth = mock(Authentication.class);
-        when(auth.getPrincipal()).thenReturn(jwt);
-        SecurityContext securityContext = mock(SecurityContext.class);
-        when(securityContext.getAuthentication()).thenReturn(auth);
+        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(jwt, "n/a", List.of());
+        SecurityContext securityContext = SecurityContextHolder.createEmptyContext();
+        securityContext.setAuthentication(auth);
         SecurityContextHolder.setContext(securityContext);
 
         ReqCartDTO req = ReqCartDTO.builder()
@@ -85,10 +84,9 @@ class CartServiceTest {
     @Test
     void saveOrUpdateCart_whenRestaurantServiceReturnsNull_publishesEventWithEmptyTypes() throws Exception {
         Jwt jwt = new Jwt("token", Instant.now(), Instant.now().plusSeconds(3600), Map.of(), Map.of("user", Map.of("id", 99)));
-        Authentication auth = mock(Authentication.class);
-        when(auth.getPrincipal()).thenReturn(jwt);
-        SecurityContext securityContext = mock(SecurityContext.class);
-        when(securityContext.getAuthentication()).thenReturn(auth);
+        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(jwt, "n/a", List.of());
+        SecurityContext securityContext = SecurityContextHolder.createEmptyContext();
+        securityContext.setAuthentication(auth);
         SecurityContextHolder.setContext(securityContext);
 
         ReqCartDTO req = ReqCartDTO.builder()
