@@ -115,15 +115,11 @@ pipeline {
 
         stage('Test') {
             steps {
-                // Hiện tại chưa có unit test thực sự — chạy nhưng không block pipeline.
-                // TODO: Thêm unit test (dùng H2 in-memory hoặc Testcontainers) để stage này có ý nghĩa.
-                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-                    script {
-                        runCommand(
-                            './gradlew test --parallel --continue',
-                            'gradlew.bat test --parallel --continue'
-                        )
-                    }
+                script {
+                    runCommand(
+                        './gradlew test --parallel --continue',
+                        'gradlew.bat test --parallel --continue'
+                    )
                 }
             }
             post {
