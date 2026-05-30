@@ -49,9 +49,21 @@ def dockerServices() {
     return javaServices() + ['eatzy-ai-service']
 }
 
+def lastCommitAuthorEmail() {
+    def email = isUnix()
+        ? sh(script: 'git log -1 --pretty=format:%ae', returnStdout: true).trim()
+        : bat(script: '@git log -1 --pretty=format:%ae', returnStdout: true).trim()
+    return email.contains('@') ? email : ''
+}
+
+def isUserTriggeredBuild() {
+    return currentBuild.getBuildCauses('hudson.model.Cause$UserIdCause').size() > 0
+}
+
 def notifyBuildRequester() {
     def result = currentBuild.currentResult ?: 'UNKNOWN'
     def branch = env.BRANCH_NAME ?: env.GIT_BRANCH ?: 'manual'
+    def directRecipient = isUserTriggeredBuild() ? '' : lastCommitAuthorEmail()
     def subject = "[${result}] ${env.JOB_NAME} #${env.BUILD_NUMBER}"
     def body = """
         <p>Build <b>${result}</b></p>
@@ -68,7 +80,8 @@ def notifyBuildRequester() {
             subject: subject,
             body: body,
             mimeType: 'text/html',
-            recipientProviders: [requestor(), developers()]
+            to: directRecipient,
+            recipientProviders: [requestor()]
         )
     } catch (err) {
         echo "Could not send build notification email: ${err.message}"
