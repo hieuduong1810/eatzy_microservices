@@ -49,6 +49,32 @@ def dockerServices() {
     return javaServices() + ['eatzy-ai-service']
 }
 
+def notifyBuildRequester() {
+    def result = currentBuild.currentResult ?: 'UNKNOWN'
+    def branch = env.BRANCH_NAME ?: env.GIT_BRANCH ?: 'manual'
+    def subject = "[${result}] ${env.JOB_NAME} #${env.BUILD_NUMBER}"
+    def body = """
+        <p>Build <b>${result}</b></p>
+        <ul>
+            <li>Job: ${env.JOB_NAME}</li>
+            <li>Build: #${env.BUILD_NUMBER}</li>
+            <li>Branch: ${branch}</li>
+            <li>URL: <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></li>
+        </ul>
+    """
+
+    try {
+        emailext(
+            subject: subject,
+            body: body,
+            mimeType: 'text/html',
+            recipientProviders: [requestor()]
+        )
+    } catch (err) {
+        echo "Could not send build notification email: ${err.message}"
+    }
+}
+
 pipeline {
     agent any
 
@@ -227,6 +253,7 @@ pipeline {
         always {
             script {
                 runCommand('docker logout || true', 'docker logout || exit /b 0')
+                notifyBuildRequester()
             }
         }
         success {
