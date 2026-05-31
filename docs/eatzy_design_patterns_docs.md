@@ -831,6 +831,179 @@ graph LR
 
 ---
 
+### 🔀 So Sánh 2 Biến Thể CoR: Custom Handler Chain vs Spring Security FilterChain
+
+> [!IMPORTANT]
+> Trong Eatzy có **2 biến thể** Chain of Responsibility. Cả hai đều tuân theo nguyên tắc "truyền request qua chuỗi xử lý", nhưng **thiết kế và cơ chế hoàn toàn khác nhau**. Đây là điểm hay mà Java cung cấp nhiều cách triển khai cùng 1 pattern.
+
+#### Biến thể 1: Custom Handler Chain (Order Service)
+
+Đã phân tích ở trên — `OrderValidationHandler` tự viết, tự quản lý chuỗi.
+
+#### Biến thể 2: Spring Security FilterChain (Auth Service)
+
+📁 File: [SecurityConfiguration.java](file:///c:/Source%20Code/Java/eatzy/eatzy-microservices/eatzy-auth-service/src/main/java/com/eatzy/auth/config/SecurityConfiguration.java#L72-L98)
+
+```java
+@Configuration
+@EnableMethodSecurity(securedEnabled = true)
+public class SecurityConfiguration {
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http,
+            CustomAuthenticationEntryPoint customAuthenticationEntryPoint) throws Exception {
+
+        String[] whiteList = { "/", "/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/auth/register",
+                "/api/v1/email/**", "/api/v1/driver-profiles/user/**", /* ... */ };
+
+        http
+            // ═══ Filter 1: CsrfFilter — Tắt CSRF (stateless API không cần) ═══
+            .csrf(csrf -> csrf.disable())
+
+            // ═══ Filter 2: CorsFilter — Tắt CORS (API Gateway xử lý) ═══
+            .cors(cors -> cors.disable())
+
+            // ═══ Filter 3: AuthorizationFilter — Phân quyền URL ═══
+            .authorizeHttpRequests(authz -> authz
+                .requestMatchers(whiteList).permitAll()       // Whitelist → cho qua
+                .requestMatchers(GET, "/api/v1/users/*").permitAll()
+                .requestMatchers("/actuator/**").permitAll()
+                .anyRequest().authenticated())                 // Còn lại → phải có JWT
+
+            // ═══ Filter 4: BearerTokenAuthenticationFilter — Xác thực JWT ═══
+            .oauth2ResourceServer(oauth2 -> oauth2
+                .jwt(Customizer.withDefaults())                // Decode + validate JWT
+                .authenticationEntryPoint(customAuthenticationEntryPoint)) // Xử lý lỗi 401
+
+            // ═══ Filter 5: FormLoginFilter — Tắt form login ═══
+            .formLogin(f -> f.disable())
+
+            // ═══ Filter 6: SessionManagementFilter — Stateless ═══
+            .sessionManagement(session ->
+                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+
+        return http.build(); // Build chuỗi Filter hoàn chỉnh
+    }
+}
+```
+
+📁 File: [CustomAuthenticationEntryPoint.java](file:///c:/Source%20Code/Java/eatzy/eatzy-microservices/eatzy-auth-service/src/main/java/com/eatzy/auth/config/CustomAuthenticationEntryPoint.java)
+
+```java
+@Component
+public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint {
+    // Delegate Pattern: wrap BearerTokenAuthenticationEntryPoint mặc định
+    private final AuthenticationEntryPoint delegate = new BearerTokenAuthenticationEntryPoint();
+
+    @Override
+    public void commence(HttpServletRequest request, HttpServletResponse response,
+            AuthenticationException authException) throws IOException, ServletException {
+
+        this.delegate.commence(request, response, authException); // Gọi xử lý mặc định trước
+
+        // Sau đó ghi đè response body thành format chuẩn của Eatzy
+        response.setContentType("application/json;charset=UTF-8");
+        RestResponse<Object> restResponse = new RestResponse<>();
+        restResponse.setStatusCode(HttpStatus.UNAUTHORIZED.value());
+        restResponse.setMessage("Token không hợp lệ (hết hạn, không đúng định dạng, ...)");
+        objectMapper.writeValue(response.getWriter(), restResponse);
+    }
+}
+```
+
+#### 📊 Bảng So Sánh Chi Tiết 2 Biến Thể
+
+| Tiêu chí | **Custom CoR** (Order Service) | **Security FilterChain** (Auth Service) |
+|---|---|---|
+| **Base class** | `OrderValidationHandler` (tự viết) | `jakarta.servlet.Filter` (Java EE chuẩn) |
+| **Cách nối chuỗi** | `handler.setNext(handler2).setNext(handler3)` — **thủ công, linked list** | `http.csrf().cors().authorizeHttpRequests()...` — **Builder DSL, framework quản lý** |
+| **Ai quản lý thứ tự?** | Developer tự viết trong constructor Facade | **Spring Security tự sắp xếp** theo thứ tự chuẩn (có `FilterOrderRegistration`) |
+| **Cách chuyển tiếp** | `super.handle(context)` — gọi handler kế | `filterChain.doFilter(request, response)` — Servlet container gọi filter kế |
+| **Ngắt chuỗi** | `throw Exception` — dừng ngay | Có thể **không gọi** `doFilter()` → dừng, hoặc trả response 401/403 |
+| **Context object** | `OrderCreationContext` (custom, mutable) | `HttpServletRequest` + `HttpServletResponse` + `SecurityContext` (Servlet API) |
+| **Scope** | Business logic — validation đơn hàng | Infrastructure — bảo mật HTTP |
+| **Số lượng filter** | 4 handlers (cố định) | **~15 filters** ngầm (Spring tự thêm) |
+| **Đăng ký handler** | `@Component` + `setNext()` thủ công | `HttpSecurity` builder tự đăng ký |
+| **Có thể thêm bằng code?** | Có — tạo class mới + sửa chain | Có — `.addFilterBefore()` / `.addFilterAfter()` |
+
+#### 🔍 Sự Khác Biệt Cốt Lõi
+
+```mermaid
+graph TB
+    subgraph "Biến thể 1: Custom CoR - Order Service"
+        direction LR
+        H1["CustomerHandler"] -->|"super.handle(ctx)"| H2["RestaurantHandler"]
+        H2 -->|"super.handle(ctx)"| H3["DeliveryFeeHandler"]
+        H3 -->|"super.handle(ctx)"| H4["OrderItemsHandler"]
+        
+        CTX["OrderCreationContext<br/>(túi xách chung)"]
+        CTX -.-> H1
+        CTX -.-> H2
+        CTX -.-> H3
+        CTX -.-> H4
+    end
+
+    subgraph "Biến thể 2: Security FilterChain - Auth Service"
+        direction LR
+        F1["CsrfFilter"] -->|"chain.doFilter()"| F2["CorsFilter"]
+        F2 -->|"chain.doFilter()"| F3["AuthorizationFilter"]
+        F3 -->|"chain.doFilter()"| F4["BearerTokenFilter"]
+        F4 -->|"chain.doFilter()"| F5["SessionFilter"]
+        F5 -->|"chain.doFilter()"| F6["Controller"]
+
+        REQRES["HttpServletRequest<br/>+ HttpServletResponse"]
+        REQRES -.-> F1
+        REQRES -.-> F2
+        REQRES -.-> F3
+        REQRES -.-> F4
+        REQRES -.-> F5
+    end
+
+    style H1 fill:#e3f2fd
+    style H2 fill:#f3e5f5
+    style H3 fill:#fff3e0
+    style H4 fill:#e8f5e9
+    style F1 fill:#ffebee
+    style F2 fill:#fce4ec
+    style F3 fill:#f3e5f5
+    style F4 fill:#ede7f6
+    style F5 fill:#e8eaf6
+    style F6 fill:#e0f7fa
+```
+
+#### 💡 Tại Sao Dùng 2 Biến Thể Khác Nhau?
+
+**1. Custom CoR (Order Service)** — Phù hợp cho **business logic validation**:
+- Cần **context object tùy chỉnh** (`OrderCreationContext`) để truyền dữ liệu giữa handlers
+- Handlers có **nghiệp vụ phức tạp** (gọi external service, tính toán, validate)
+- Thứ tự handlers **phụ thuộc nghiệp vụ** (phải validate customer trước mới validate restaurant)
+- **Developer kiểm soát hoàn toàn** chuỗi
+
+**2. Security FilterChain (Auth Service)** — Phù hợp cho **infrastructure cross-cutting concerns**:
+- Sử dụng **Servlet API chuẩn** (`HttpServletRequest/Response`)
+- Filters là **stateless** — không share context tùy chỉnh
+- Spring **tự quản lý thứ tự** (~15 filters ngầm, developer chỉ cấu hình on/off)
+- Xử lý **bảo mật, CORS, session** — những thứ "ngang" (cross-cutting), không phải nghiệp vụ dọc
+
+**3. Cộng tác giữa 2 biến thể**:
+```
+HTTP Request
+    → [Security FilterChain] (auth-service validate JWT, phân quyền)
+    → Controller nhận request hợp lệ
+    → OrderService.createOrder()
+    → [Custom Handler Chain] (validate business rules)
+```
+Security FilterChain chạy **TRƯỚC** ở tầng HTTP để đảm bảo request có JWT hợp lệ. Sau đó Custom Handler Chain chạy ở **tầng business logic** để validate nghiệp vụ. Hai tầng CoR bổ sung cho nhau hoàn hảo.
+
+> [!NOTE]
+> **Ghi nhớ**: Cùng là CoR nhưng:
+> - **Custom CoR** = tự viết base class, tự nối chain, dùng cho **business validation**
+> - **FilterChain** = framework cung cấp, tự quản lý, dùng cho **infrastructure security**
+> 
+> Biết khi nào dùng biến thể nào là kỹ năng quan trọng khi thiết kế hệ thống. Nếu logic là nghiệp vụ → Custom CoR. Nếu logic là bảo mật/HTTP → FilterChain.
+
+---
+
 ## 4. Facade Pattern
 
 > **Định nghĩa**: Facade cung cấp **giao diện đơn giản** cho một hệ thống phức tạp bên trong. Client chỉ cần gọi 1 method, Facade điều phối mọi thứ.
