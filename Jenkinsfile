@@ -255,9 +255,14 @@ pipeline {
                                     "
                             ''',
                             '''
-                                scp -i "%SSH_KEY%" -P %SERVER_PORT% -o StrictHostKeyChecking=no docker-compose.prod.yml "%SSH_USER%@%SERVER_IP%:/home/%SSH_USER%/projects/eatzy-microservices/docker-compose.prod.yml"
-                                scp -i "%SSH_KEY%" -P %SERVER_PORT% -o StrictHostKeyChecking=no "%ENV_FILE%" "%SSH_USER%@%SERVER_IP%:/home/%SSH_USER%/projects/eatzy-microservices/.env"
-                                ssh -i "%SSH_KEY%" -p %SERVER_PORT% -o StrictHostKeyChecking=no "%SSH_USER%@%SERVER_IP%" "cd /home/%SSH_USER%/projects/eatzy-microservices && export DOCKERHUB_USER=%DOCKER_USER% && docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d && docker image prune -f"
+                                set "SSH_KEY_SAFE=%WORKSPACE%\\.jenkins-server-ssh-key"
+                                copy /Y "%SSH_KEY%" "%SSH_KEY_SAFE%" >nul
+                                icacls "%SSH_KEY_SAFE%" /inheritance:r
+                                icacls "%SSH_KEY_SAFE%" /remove:g "*S-1-5-32-545" "*S-1-5-11" "*S-1-1-0"
+
+                                scp -i "%SSH_KEY_SAFE%" -P %SERVER_PORT% -o StrictHostKeyChecking=no docker-compose.prod.yml "%SSH_USER%@%SERVER_IP%:/home/%SSH_USER%/projects/eatzy-microservices/docker-compose.prod.yml"
+                                scp -i "%SSH_KEY_SAFE%" -P %SERVER_PORT% -o StrictHostKeyChecking=no "%ENV_FILE%" "%SSH_USER%@%SERVER_IP%:/home/%SSH_USER%/projects/eatzy-microservices/.env"
+                                ssh -i "%SSH_KEY_SAFE%" -p %SERVER_PORT% -o StrictHostKeyChecking=no "%SSH_USER%@%SERVER_IP%" "cd /home/%SSH_USER%/projects/eatzy-microservices && export DOCKERHUB_USER=%DOCKER_USER% && docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d && docker image prune -f"
                             '''
                         )
                     }
