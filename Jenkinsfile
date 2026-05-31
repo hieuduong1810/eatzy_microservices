@@ -29,12 +29,70 @@ def imageTagsForBuild() {
     return isMainBranch() ? ['latest', versionTag] : [versionTag]
 }
 
+def javaServices() {
+    return [
+        'eatzy-discovery-server',
+        'eatzy-config-server',
+        'eatzy-api-gateway',
+        'eatzy-auth-service',
+        'eatzy-restaurant-service',
+        'eatzy-order-service',
+        'eatzy-communication-service',
+        'eatzy-cart-service',
+        'eatzy-payment-service',
+        'eatzy-interaction-service',
+        'eatzy-system-config-service'
+    ]
+}
+
+def dockerServices() {
+    return javaServices() + ['eatzy-ai-service']
+}
+
+def lastCommitAuthorEmail() {
+    def email = isUnix()
+        ? sh(script: 'git log -1 --pretty=format:%ae', returnStdout: true).trim()
+        : bat(script: '@git log -1 --pretty=format:%%ae', returnStdout: true).trim()
+    return email.contains('@') ? email : ''
+}
+
+def isUserTriggeredBuild() {
+    return currentBuild.getBuildCauses('hudson.model.Cause$UserIdCause').size() > 0
+}
+
+def notifyBuildRequester() {
+    def result = currentBuild.currentResult ?: 'UNKNOWN'
+    def branch = env.BRANCH_NAME ?: env.GIT_BRANCH ?: 'manual'
+    def directRecipient = isUserTriggeredBuild() ? '' : lastCommitAuthorEmail()
+    if (directRecipient) {
+        echo "Sending build notification to commit author: ${directRecipient}"
+    }
+    def subject = "[${result}] ${env.JOB_NAME} #${env.BUILD_NUMBER}"
+    def body = """
+        <p>Build <b>${result}</b></p>
+        <ul>
+            <li>Job: ${env.JOB_NAME}</li>
+            <li>Build: #${env.BUILD_NUMBER}</li>
+            <li>Branch: ${branch}</li>
+            <li>URL: <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></li>
+        </ul>
+    """
+
+    try {
+        emailext(
+            subject: subject,
+            body: body,
+            mimeType: 'text/html',
+            to: directRecipient,
+            recipientProviders: [requestor()]
+        )
+    } catch (err) {
+        echo "Could not send build notification email: ${err.message}"
+    }
+}
+
 pipeline {
     agent any
-
-    triggers {
-        githubPush()
-    }
 
     options {
         timeout(time: 60, unit: 'MINUTES')
@@ -57,15 +115,11 @@ pipeline {
 
         stage('Test') {
             steps {
-                // Hiện tại chưa có unit test thực sự — chạy nhưng không block pipeline.
-                // TODO: Thêm unit test (dùng H2 in-memory hoặc Testcontainers) để stage này có ý nghĩa.
-                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-                    script {
-                        runCommand(
-                            './gradlew test --parallel --continue',
-                            'gradlew.bat test --parallel --continue'
-                        )
-                    }
+                script {
+                    runCommand(
+                        './gradlew test --parallel --continue',
+                        'gradlew.bat test --parallel --continue'
+                    )
                 }
             }
             post {
@@ -75,7 +129,40 @@ pipeline {
             }
         }
 
+        stage('Build Java Artifacts') {
+            steps {
+                script {
+                    def services = javaServices()
+                    def bootJarTasks = services.collect { service -> ":${service}:bootJar" }.join(' ')
+                    def serviceNames = services.join(' ')
+
+                    runCommand(
+                        """
+                            rm -rf docker-artifacts
+                            ./gradlew ${bootJarTasks} --parallel -x test
+                            mkdir -p docker-artifacts
+                            for svc in ${serviceNames}; do
+                                jar=\$(find "\$svc/build/libs" -maxdepth 1 -name '*.jar' ! -name '*-plain.jar' | head -n 1)
+                                cp "\$jar" "docker-artifacts/\$svc.jar"
+                            done
+                        """,
+                        """
+                            if exist docker-artifacts rmdir /s /q docker-artifacts
+                            call gradlew.bat ${bootJarTasks} --parallel -x test
+                            mkdir docker-artifacts
+                            for %%S in (${serviceNames}) do for %%J in (%%S\\build\\libs\\*.jar) do echo %%~nxJ | findstr /v /c:"-plain.jar" >nul && copy /Y "%%J" "docker-artifacts\\%%S.jar"
+                        """
+                    )
+                }
+            }
+        }
+
         stage('Build & Push Docker Images') {
+            when {
+                expression {
+                    isMainBranch()
+                }
+            }
             steps {
                 script {
                     withCredentials([usernamePassword(
@@ -88,20 +175,7 @@ pipeline {
                             'echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin'
                         )
 
-                        def services = [
-                            'eatzy-discovery-server',
-                            'eatzy-config-server',
-                            'eatzy-api-gateway',
-                            'eatzy-auth-service',
-                            'eatzy-restaurant-service',
-                            'eatzy-order-service',
-                            'eatzy-communication-service',
-                            'eatzy-cart-service',
-                            'eatzy-payment-service',
-                            'eatzy-interaction-service',
-                            'eatzy-system-config-service',
-                            'eatzy-ai-service'
-                        ]
+                        def services = dockerServices()
 
                         def buildAndPushImage = { svc ->
                             def imageBase = "${env.DOCKER_USER}/${svc}"
@@ -196,6 +270,7 @@ pipeline {
         always {
             script {
                 runCommand('docker logout || true', 'docker logout || exit /b 0')
+                notifyBuildRequester()
             }
         }
         success {
