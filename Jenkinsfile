@@ -255,10 +255,11 @@ pipeline {
                                     "
                             ''',
                             '''
-                                set "SSH_KEY_SAFE=%WORKSPACE%\\.jenkins-server-ssh-key"
+                                set "SSH_KEY_SAFE=%WORKSPACE%\\.jenkins-server-ssh-key-%BUILD_NUMBER%"
                                 copy /Y "%SSH_KEY%" "%SSH_KEY_SAFE%" >nul
+                                for /f "delims=" %%U in ('whoami') do set "CURRENT_USER=%%U"
                                 icacls "%SSH_KEY_SAFE%" /inheritance:r
-                                icacls "%SSH_KEY_SAFE%" /remove:g "*S-1-5-32-545" "*S-1-5-11" "*S-1-1-0"
+                                icacls "%SSH_KEY_SAFE%" /grant:r "%CURRENT_USER%:R" "*S-1-5-18:R"
 
                                 scp -i "%SSH_KEY_SAFE%" -P %SERVER_PORT% -o StrictHostKeyChecking=no docker-compose.prod.yml "%SSH_USER%@%SERVER_IP%:/home/%SSH_USER%/projects/eatzy-microservices/docker-compose.prod.yml"
                                 scp -i "%SSH_KEY_SAFE%" -P %SERVER_PORT% -o StrictHostKeyChecking=no "%ENV_FILE%" "%SSH_USER%@%SERVER_IP%:/home/%SSH_USER%/projects/eatzy-microservices/.env"
