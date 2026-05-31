@@ -4,6 +4,8 @@ Tài liệu này giải thích cách `Jenkinsfile` của dự án hoạt động
 
 File liên quan: [`Jenkinsfile`](../Jenkinsfile)
 
+Pipeline hiện tại chạy CI cho mọi branch đến hết stage `Build Java Artifacts`. Hai stage `Build & Push Docker Images` và `Deploy` chỉ chạy trên branch `main`.
+
 ## 1. Kiểu pipeline
 
 Dự án dùng Declarative Pipeline:
@@ -95,6 +97,7 @@ def isMainBranch() {
 Hàm này được dùng để:
 
 - Tạo tag `latest` chỉ trên `main`.
+- Cho phép build/push Docker image chỉ trên `main`.
 - Cho phép deploy chỉ trên `main`.
 
 ## 5. Docker-safe tag
@@ -143,6 +146,8 @@ Nếu branch khác:
 ```text
 <branch>-<commit>
 ```
+
+Lưu ý: `Jenkinsfile` hiện tại vẫn định nghĩa cách tạo tag cho branch khác, nhưng stage Docker chỉ chạy trên `main`. Vì vậy tag branch khác chưa được push trong flow hiện tại.
 
 Mục đích:
 
@@ -214,22 +219,15 @@ Windows dùng `gradlew.bat`, không cần chmod.
 ## 10. Stage `Test`
 
 ```groovy
-catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-    script {
-        runCommand(
-            './gradlew test --parallel --continue',
-            'gradlew.bat test --parallel --continue'
-        )
-    }
+script {
+    runCommand(
+        './gradlew test --parallel --continue',
+        'gradlew.bat test --parallel --continue'
+    )
 }
 ```
 
-Nếu test fail:
-
-- Stage thành `UNSTABLE`.
-- Pipeline không bị stop ngay.
-
-Đây là cấu hình tạm thời. Khi test suite đã đầy đủ và đáng tin cậy, nên đổi thành fail hard bằng cách bỏ `catchError`.
+Nếu test fail, pipeline fail. Stage này không dùng `catchError`, vì code lỗi test không nên đi tiếp sang Docker build hoặc deploy.
 
 ## 11. Stage `Build Java Artifacts`
 
@@ -290,6 +288,18 @@ Log đúng sau khi copy artifact trên Windows sẽ có 11 dòng:
 
 ## 12. Stage `Build & Push Docker Images`
 
+Stage này có điều kiện:
+
+```groovy
+when {
+    expression {
+        isMainBranch()
+    }
+}
+```
+
+Vì vậy chỉ branch `main` mới build/push Docker images. Feature branch dừng sau `Build Java Artifacts`.
+
 Pipeline login Docker Hub bằng:
 
 ```groovy
@@ -307,16 +317,17 @@ Không in password ra log. Jenkins mask giá trị `%DOCKER_PASS%`/`$DOCKER_PASS
 Lệnh build/push tương đương:
 
 ```bash
-docker build -t honguynvu/eatzy-auth-service:feat-vu-66dea5b -f eatzy-auth-service/Dockerfile .
-docker push honguynvu/eatzy-auth-service:feat-vu-66dea5b
+docker build -t <dockerhub-user>/eatzy-auth-service:latest -t <dockerhub-user>/eatzy-auth-service:main-66dea5b -f eatzy-auth-service/Dockerfile .
+docker push <dockerhub-user>/eatzy-auth-service:latest
+docker push <dockerhub-user>/eatzy-auth-service:main-66dea5b
 ```
 
 Trên `main`, lệnh build có nhiều tag:
 
 ```bash
 docker build \
-  -t honguynvu/eatzy-auth-service:latest \
-  -t honguynvu/eatzy-auth-service:main-66dea5b \
+  -t <dockerhub-user>/eatzy-auth-service:latest \
+  -t <dockerhub-user>/eatzy-auth-service:main-66dea5b \
   -f eatzy-auth-service/Dockerfile .
 ```
 
@@ -364,6 +375,24 @@ file(credentialsId: 'env-file', ...)
 ```
 
 Pipeline copy file cần thiết lên server bằng `scp`, sau đó chạy `docker compose` qua `ssh`.
+
+Trên Windows agent, đoạn deploy dùng file key tạm riêng:
+
+```bat
+set "SSH_KEY_SAFE=%WORKSPACE%\.jenkins-server-ssh-key-%BUILD_NUMBER%"
+copy /Y "%SSH_KEY%" "%SSH_KEY_SAFE%" >nul
+for /f "delims=" %%U in ('whoami') do set "CURRENT_USER=%%U"
+icacls "%SSH_KEY_SAFE%" /inheritance:r
+icacls "%SSH_KEY_SAFE%" /grant:r "%CURRENT_USER%:R" "*S-1-5-18:R"
+```
+
+Mục đích là tránh lỗi Windows OpenSSH từ chối private key:
+
+```text
+WARNING: UNPROTECTED PRIVATE KEY FILE
+Load key "...": bad permissions
+Load key "...": Permission denied
+```
 
 ## 15. Post actions
 
@@ -427,6 +456,8 @@ Một số lỗi thường gặp:
 | `server-ssh-key not found` | Thiếu deploy credential | Tạo credential đúng ID |
 | `Docker login failed` | Sai Docker Hub token | Tạo lại Docker Hub access token |
 | `COPY docker-artifacts/...jar: not found` | Windows batch script dừng sau `gradlew.bat`, chưa copy jar | Dùng `call gradlew.bat ...` trong stage `Build Java Artifacts` |
+| `open //./pipe/docker_engine` | Docker Desktop chưa chạy trên máy Jenkins Windows | Mở Docker Desktop, test `docker ps`, restart Jenkins service nếu cần |
+| `UNPROTECTED PRIVATE KEY FILE` | ACL file SSH key quá rộng trên Windows | Dùng đoạn `SSH_KEY_SAFE` và `icacls` trong Jenkinsfile |
 | `meta.db input/output error` | Docker Desktop storage lỗi | Restart Docker Desktop, `wsl --shutdown`, prune cache |
 | `zip END header not found` | Gradle wrapper zip trong Docker cache corrupt | Không build Gradle trong Docker nữa, build artifact trước |
 | Deploy skipped | Build branch khác `main` | Đây là hành vi đúng |
@@ -438,10 +469,22 @@ Một build branch feature được xem là đúng khi có chuỗi kết quả:
 ```text
 BUILD SUCCESSFUL in ...s
 1 file(s) copied.
-docker push honguynvu/<service>:feat-vu-<commit>
+Stage "Build & Push Docker Images" skipped due to when conditional
 Stage "Deploy" skipped due to when conditional
 Pipeline succeeded on branch feat/vu
 Finished: SUCCESS
 ```
 
-Nếu branch là `feat/vu`, deploy bị skip là đúng thiết kế. Chỉ `main` mới chạy deploy.
+Nếu branch là `feat/vu`, Docker build/push và deploy bị skip là đúng thiết kế. Chỉ `main` mới build/push image và deploy.
+
+Một build `main` deploy thành công sẽ có các log kiểu:
+
+```text
+docker push <dockerhub-user>/eatzy-api-gateway:latest
+docker push <dockerhub-user>/eatzy-api-gateway:main-<commit>
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+Container eatzy-api-gateway Started
+Pipeline succeeded on branch main
+Finished: SUCCESS
+```

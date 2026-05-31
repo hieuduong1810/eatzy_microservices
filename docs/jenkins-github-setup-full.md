@@ -7,8 +7,8 @@ Mục tiêu:
 - GitHub push trigger Jenkins.
 - Jenkins scan branch/PR.
 - Jenkins checkout code bằng credential GitHub.
-- Jenkins build/test Docker images.
-- Jenkins deploy chỉ khi branch là `main`.
+- Jenkins chạy CI cho mọi branch: checkout, test, build Java artifacts.
+- Jenkins chỉ build/push Docker images và deploy khi branch là `main`.
 
 ## 1. Kiến trúc tổng quan
 
@@ -27,12 +27,13 @@ Jenkins Multibranch Pipeline
     v
 Gradle test/build
     |
-    v
-Docker build/push
-    |
     +--> feature branch: dừng
     |
-    +--> main branch: deploy qua SSH
+    +--> main branch:
+            Docker build/push
+            |
+            v
+            deploy qua SSH
 ```
 
 ## 2. Yêu cầu trên máy Jenkins
@@ -45,6 +46,7 @@ Docker build/push
 | Java | JDK 17 |
 | Git | Có `git.exe` trong PATH |
 | Docker Desktop | Đang chạy và CLI dùng được |
+| OpenSSH client | Có `ssh` và `scp` trong PATH |
 | Gradle wrapper | Dùng file `gradlew`/`gradlew.bat` trong repo |
 | Internet | Truy cập GitHub, Docker Hub, Maven Central |
 
@@ -57,6 +59,7 @@ java -version
 git --version
 docker info
 docker compose version
+ssh -V
 ```
 
 Kỳ vọng:
@@ -65,6 +68,7 @@ Kỳ vọng:
 - `git --version` trả về Git version.
 - `docker info` không lỗi.
 - Docker context thường là `desktop-linux`.
+- `ssh -V` trả về OpenSSH version.
 
 ## 3. Cài Jenkins trên Windows
 
@@ -147,8 +151,8 @@ Tạo credential:
 | Kind | `Username with password` |
 | Username | GitHub username |
 | Password | GitHub Personal Access Token |
-| ID | `githubtokens` |
-| Description | `Githubtokens` |
+| ID | ví dụ `github` hoặc `githubtokens` |
+| Description | `GitHub token for Eatzy Jenkins` |
 
 Lý do dùng `Username with password`:
 
@@ -158,8 +162,8 @@ Lý do dùng `Username with password`:
 Sau khi dùng thành công, log checkout sẽ có:
 
 ```text
-using credential githubtokens
-using GIT_ASKPASS to set credentials Githubtokens
+using credential github
+using GIT_ASKPASS to set credentials ...
 ```
 
 ## 7. Tạo Docker Hub credential
@@ -187,6 +191,14 @@ docker login
 docker push
 ```
 
+Với production hiện tại, Docker Hub username phải là namespace mà server pull image từ đó. Ví dụ nếu server đang chạy image dạng:
+
+```text
+duonghieu1810/eatzy-api-gateway:latest
+```
+
+thì `dockerhub-credentials.Username` và credential `dockerhub-user` bên dưới cũng phải là `duonghieu1810`.
+
 ## 8. Tạo deploy credentials
 
 Chỉ cần nếu muốn deploy branch `main`.
@@ -200,12 +212,24 @@ Chỉ cần nếu muốn deploy branch `main`.
 | Private Key | Private key SSH |
 | ID | `server-ssh-key` |
 
+Test trước trên máy Jenkins:
+
+```powershell
+ssh -i C:\Users\<windows-user>\.ssh\jenkins-deploy-key -p <port> <ssh-user>@<server-host>
+```
+
+Ví dụ production hiện tại:
+
+```powershell
+ssh -i C:\Users\ADMIN\.ssh\jenkins-deploy-key -p 38283 hieu@hieussh.hoanduong.net
+```
+
 ### 8.2 Server IP
 
 | Field | Giá trị |
 |---|---|
 | Kind | `Secret text` |
-| Secret | IP/hostname server |
+| Secret | IP/hostname server, ví dụ `hieussh.hoanduong.net` |
 | ID | `server-ip` |
 
 ### 8.3 Server SSH port
@@ -213,7 +237,7 @@ Chỉ cần nếu muốn deploy branch `main`.
 | Field | Giá trị |
 |---|---|
 | Kind | `Secret text` |
-| Secret | Thường là `22` |
+| Secret | SSH port, ví dụ `38283` |
 | ID | `server-port` |
 
 ### 8.4 Docker Hub username cho deploy
@@ -221,7 +245,7 @@ Chỉ cần nếu muốn deploy branch `main`.
 | Field | Giá trị |
 |---|---|
 | Kind | `Secret text` |
-| Secret | Docker Hub username |
+| Secret | Docker Hub username/namespace dùng trong `docker-compose.prod.yml` |
 | ID | `dockerhub-user` |
 
 ### 8.5 File `.env`
@@ -231,6 +255,14 @@ Chỉ cần nếu muốn deploy branch `main`.
 | Kind | `Secret file` |
 | File | File `.env` production |
 | ID | `env-file` |
+
+File này sẽ được Jenkins copy lên server thành:
+
+```text
+/home/<ssh-user>/projects/eatzy-microservices/.env
+```
+
+Không commit `.env` production lên GitHub.
 
 ## 9. Expose Jenkins ra internet
 
@@ -311,7 +343,7 @@ Cấu hình:
 
 | Field | Giá trị |
 |---|---|
-| Credentials | `githubtokens` |
+| Credentials | GitHub credential đã tạo, ví dụ `github` |
 | Repository HTTPS URL | `https://github.com/hieuduong1810/eatzy_microservices` |
 
 Bấm `Validate`.
@@ -444,15 +476,10 @@ Push event to branch feat/vu
 Checking out Revision <commit> (feat/vu)
 ```
 
-Image tag đúng:
+Docker build/push và deploy phải bị skip:
 
 ```text
-honguynvu/eatzy-auth-service:feat-vu-<commit>
-```
-
-Deploy phải bị skip:
-
-```text
+Stage "Build & Push Docker Images" skipped due to when conditional
 Stage "Deploy" skipped
 ```
 
@@ -462,7 +489,6 @@ Với pipeline đã tối ưu build artifact trước Docker, log đúng còn c�
 Stage "Build Java Artifacts"
 BUILD SUCCESSFUL
 1 file(s) copied.
-COPY docker-artifacts/eatzy-discovery-server.jar app.jar
 Pipeline succeeded on branch feat/vu
 Finished: SUCCESS
 ```
@@ -480,13 +506,14 @@ git push origin main
 Image tag đúng:
 
 ```text
-honguynvu/eatzy-auth-service:latest
-honguynvu/eatzy-auth-service:main-<commit>
+<dockerhub-user>/eatzy-auth-service:latest
+<dockerhub-user>/eatzy-auth-service:main-<commit>
 ```
 
 Deploy sẽ chạy nếu đã có đầy đủ credentials:
 
 ```text
+dockerhub-credentials
 server-ssh-key
 server-ip
 server-port
@@ -508,6 +535,7 @@ Server cần có:
 - Docker Compose plugin
 - Quyền user được chạy Docker
 - Network/firewall mở các port cần thiết
+- File `eatzy.jks` nếu service auth đang mount `./eatzy.jks:/app/eatzy.jks:ro`
 
 Pipeline sẽ copy:
 
@@ -519,6 +547,21 @@ Sau đó chạy:
 ```bash
 docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d
+```
+
+Với server hiện tại, đường dẫn deploy là:
+
+```text
+/home/hieu/projects/eatzy-microservices
+```
+
+Kiểm tra nhanh:
+
+```bash
+cd /home/hieu/projects/eatzy-microservices
+docker ps
+docker compose version
+ls -la eatzy.jks
 ```
 
 ## 18. Troubleshooting
@@ -581,6 +624,53 @@ docker system prune -af
 ```
 
 Lưu ý: prune sẽ xóa cache/images/containers không dùng.
+
+### Docker daemon không chạy trên Jenkins Windows
+
+Triệu chứng:
+
+```text
+error during connect: this error may indicate that the docker daemon is not running
+open //./pipe/docker_engine
+```
+
+Cách xử lý:
+
+1. Mở Docker Desktop.
+2. Chờ Docker Engine running.
+3. Test trong PowerShell trên máy Jenkins:
+
+```powershell
+docker ps
+```
+
+Nếu Jenkins chạy dạng Windows service, restart service sau khi Docker Desktop đã chạy:
+
+```powershell
+Restart-Service Jenkins
+```
+
+### Windows OpenSSH báo private key permission
+
+Triệu chứng:
+
+```text
+WARNING: UNPROTECTED PRIVATE KEY FILE
+Load key "...": bad permissions
+Load key "...": Permission denied
+```
+
+Nguyên nhân là file private key tạm do Jenkins tạo có ACL không phù hợp với Windows OpenSSH.
+
+`Jenkinsfile` hiện tại xử lý bằng cách copy key sang workspace, tắt inheritance và cấp quyền đọc cho user đang chạy Jenkins:
+
+```bat
+set "SSH_KEY_SAFE=%WORKSPACE%\.jenkins-server-ssh-key-%BUILD_NUMBER%"
+copy /Y "%SSH_KEY%" "%SSH_KEY_SAFE%" >nul
+for /f "delims=" %%U in ('whoami') do set "CURRENT_USER=%%U"
+icacls "%SSH_KEY_SAFE%" /inheritance:r
+icacls "%SSH_KEY_SAFE%" /grant:r "%CURRENT_USER%:R" "*S-1-5-18:R"
+```
 
 ### Gradle wrapper zip corrupt
 
@@ -661,14 +751,16 @@ Trước khi coi setup đã xong, kiểm tra tất cả:
 - [ ] Java 17 đúng trong Jenkins.
 - [ ] Git dùng được trong Jenkins.
 - [ ] Docker CLI dùng được trong Jenkins.
-- [ ] GitHub credential `githubtokens` tồn tại.
+- [ ] GitHub credential cho Branch Source tồn tại.
 - [ ] Docker Hub credential `dockerhub-credentials` tồn tại.
+- [ ] Docker Hub username secret `dockerhub-user` tồn tại và trùng namespace image production.
+- [ ] Deploy credentials `server-ssh-key`, `server-ip`, `server-port`, `env-file` tồn tại.
 - [ ] Branch Source chọn GitHub credential, không để `none`.
 - [ ] GitHub webhook trỏ về `/github-webhook/`.
 - [ ] Webhook recent delivery trả `200`.
 - [ ] Multibranch scan không còn anonymous access.
 - [ ] Push branch feature trigger Jenkins.
-- [ ] Branch feature build image tag theo branch/commit.
+- [ ] Branch feature chỉ chạy test và build Java artifacts.
 - [ ] Branch feature không deploy.
-- [ ] Push `main` tạo `latest`.
-- [ ] Deploy credentials đã tạo nếu cần deploy.
+- [ ] Push hoặc merge vào `main` tạo image `latest` và `main-<commit>`.
+- [ ] Push hoặc merge vào `main` deploy thành công lên server.

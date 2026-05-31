@@ -1,18 +1,18 @@
-# Jenkins CI Pipeline - Eatzy Microservices
+# Jenkins CI/CD Pipeline - Eatzy Microservices
 
-Tài liệu này mô tả pipeline CI hiện tại của dự án Eatzy Microservices khi chạy bằng Jenkins Multibranch Pipeline.
+Tài liệu này mô tả pipeline CI/CD hiện tại của dự án Eatzy Microservices khi chạy bằng Jenkins Multibranch Pipeline.
 
 Pipeline được định nghĩa trong file [`Jenkinsfile`](../Jenkinsfile).
 
 ## Mục tiêu
 
-CI pipeline có các mục tiêu chính:
+Pipeline có các mục tiêu chính:
 
 - Kiểm tra code mới trên từng branch.
 - Build artifact Java bằng Gradle.
-- Đóng gói Docker image cho tất cả service.
-- Push image lên Docker Hub với tag theo branch và commit.
-- Chỉ deploy khi build trên branch `main`.
+- Chỉ trên branch `main`: đóng gói Docker image cho tất cả service.
+- Chỉ trên branch `main`: push image lên Docker Hub với tag `latest` và tag theo commit.
+- Chỉ trên branch `main`: deploy lên server qua SSH.
 
 ## Tổng quan luồng CI/CD
 
@@ -34,12 +34,13 @@ Run Gradle tests
     v
 Build Java bootJar artifacts
     |
-    v
-Build and push Docker images
-    |
     +--> branch != main: dừng sau CI
     |
-    +--> branch == main: deploy lên server
+    +--> branch == main:
+            Build and push Docker images
+            |
+            v
+            Deploy lên server qua SSH
 ```
 
 ## Hành vi theo branch
@@ -47,10 +48,10 @@ Build and push Docker images
 | Branch | Test | Build jar | Build image | Push image | Deploy |
 |---|---:|---:|---:|---:|---:|
 | `main` | Có | Có | Có | Có | Có |
-| `feat/*` | Có | Có | Có | Có | Không |
-| Branch khác | Có | Có | Có | Có | Không |
+| `feat/*` | Có | Có | Không | Không | Không |
+| Branch khác | Có | Có | Không | Không | Không |
 
-Deploy được chặn bằng điều kiện:
+Các stage Docker build/push và Deploy đều được chặn bằng điều kiện:
 
 ```groovy
 when {
@@ -62,21 +63,7 @@ when {
 
 ## Docker image tags
 
-Pipeline tạo tag dựa trên branch và commit.
-
-Với branch khác `main`:
-
-```text
-<branch-safe-name>-<short-commit>
-```
-
-Ví dụ:
-
-```text
-feat-vu-66dea5b
-```
-
-Với branch `main`, pipeline tạo 2 tag:
+Pipeline có helper tạo tag dựa trên branch và commit, nhưng stage Docker hiện chỉ chạy trên `main`. Vì vậy trong thực tế mỗi service trên `main` được build với 2 tag:
 
 ```text
 latest
@@ -94,7 +81,7 @@ Lý do:
 
 - `latest` để production compose file có thể pull image mới nhất.
 - `main-<commit>` để truy vết image được build từ commit nào.
-- Branch feature không ghi đè `latest`, tránh ảnh hưởng production.
+- Branch feature không build/push Docker, tránh ảnh hưởng production và giảm thời gian CI.
 
 ## Services được build
 
@@ -163,17 +150,7 @@ Windows:
 gradlew.bat test --parallel --continue
 ```
 
-Stage này đang được bọc trong:
-
-```groovy
-catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE')
-```
-
-Ý nghĩa:
-
-- Nếu test fail, stage được đánh dấu `UNSTABLE`.
-- Build tổng thể vẫn có thể tiếp tục.
-- Đây là cấu hình tạm thời vì dự án chưa có đầy đủ unit/integration tests.
+Nếu test fail, pipeline fail. Đây là hành vi mong muốn cho CI hiện tại: branch lỗi test không được đi tiếp tới build artifact, Docker image hoặc deploy.
 
 Pipeline publish JUnit report:
 
@@ -266,6 +243,8 @@ echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
 
 Sau đó build/push image cho 12 services.
 
+Stage này chỉ chạy trên `main`. Feature branch dừng sau stage `Build Java Artifacts`.
+
 ### Dockerfile Java service
 
 Java Dockerfile hiện tại chỉ đóng gói artifact đã build:
@@ -346,6 +325,14 @@ docker compose -f docker-compose.prod.yml up -d
 docker image prune -f
 ```
 
+Trên Windows agent, Jenkins tạo SSH key credential thành file tạm có quyền quá rộng. `Jenkinsfile` copy key sang file riêng trong workspace và dùng `icacls` để chỉ cấp quyền đọc cho user đang chạy Jenkins và `SYSTEM`, tránh lỗi:
+
+```text
+WARNING: UNPROTECTED PRIVATE KEY FILE
+Load key "...": bad permissions
+Load key "...": Permission denied
+```
+
 ## Post actions
 
 Pipeline luôn logout Docker:
@@ -383,7 +370,7 @@ Push event to branch feat/vu
 Connecting to https://api.github.com using ...
 BUILD SUCCESSFUL
 1 file(s) copied.
-docker push honguynvu/eatzy-discovery-server:feat-vu-<commit>
+Stage "Build & Push Docker Images" skipped due to when conditional
 Stage "Deploy" skipped due to when conditional
 Pipeline succeeded on branch feat/vu
 Finished: SUCCESS
@@ -394,7 +381,7 @@ Finished: SUCCESS
 - Jenkins đã dùng GitHub credential, không còn anonymous API.
 - Test và `bootJar` đã thành công.
 - `docker-artifacts/` đã được tạo đúng.
-- Image branch được push bằng tag riêng.
+- Docker image không được build/push trên branch feature.
 - Deploy không chạy trên branch feature.
 
 ## Cách chạy CI trước khi push
