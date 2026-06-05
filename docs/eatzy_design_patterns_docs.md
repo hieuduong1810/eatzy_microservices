@@ -1084,12 +1084,16 @@ public ResOrderDTO createOrderFromReqDTO(ReqOrderDTO req, String clientIp, Strin
 
 > [!TIP]
 > **Lợi ích khi scale**: Thêm bước mới (loyalty points, notifications, analytics)? Thêm vào Facade — **OrderService và Controller không đổi**. Facade giữ SRP cho OrderService.
+>
+> **💡 Tính ứng dụng thực tế (Facade vs Mediator)**: Trong hệ thống Eatzy, `OrderCreationFacade` đóng vai trò là một biến thể kết hợp giữa **Facade Pattern** và **Mediator Pattern** (hay còn gọi là Orchestrator). Nó vừa đóng vai trò Facade giúp giản lược giao diện gọi hàm cho `OrderService`, vừa đóng vai trò Mediator để chủ động điều phối luồng xử lý tuần tự giữa các thành phần độc lập (Validation Chain, DB Persistence, Event Streaming, Remote API Call) nhằm giữ cho `OrderService` luôn tuân thủ nguyên tắc Đơn nhiệm (SRP).
 
 ---
 
-## 5. State Pattern
+## 5. State Pattern (Biến thể Lightweight Enum State Machine)
 
 > **Định nghĩa**: State Pattern cho phép object thay đổi hành vi khi **trạng thái nội tại** thay đổi. Object dường như thay đổi class của nó.
+>
+> **💡 Tính ứng dụng thực tế (Tại sao dùng Enum?)**: Đây là sự dung hòa bắt buộc khi làm việc với hệ thống Microservices và Cơ sở dữ liệu quan hệ (ORM/JPA). Việc lưu một chuỗi String/Enum trạng thái xuống DB sẽ tối ưu hiệu năng hơn rất nhiều so với việc mapping một cấu trúc Object động phức tạp của GoF State Pattern xuống bảng dữ liệu SQL. Do đó, "Lightweight Enum State Machine" là Best Practice hiện đại.
 
 **Bài toán**: Đơn hàng có nhiều trạng thái (PENDING → PREPARING → READY → DELIVERED...) với rules chặt:
 - Không thể từ DELIVERED về PENDING
@@ -1403,13 +1407,36 @@ graph LR
 
 ---
 
-## 8. Factory Method Pattern
+## 8. Factory Method Pattern (với Spring Map Injection)
 
-> **Định nghĩa**: Factory Method định nghĩa interface để tạo object, cho phép subclass quyết định class nào được tạo. Client code không cần biết class cụ thể.
+> **Định nghĩa**: Factory Method định nghĩa interface để tạo object, cho phép subclass quyết định class nào được tạo. Client code không cần biết class cụ thể. Trong môi trường Spring Boot, việc kết hợp cùng IoC Container (Map Injection) giúp loại bỏ hoàn toàn khối lệnh `switch-case`, tuân thủ tuyệt đối **Open/Closed Principle**.
 
-**Bài toán**: Communication Service cần gửi nhiều loại notification qua WebSocket: Order, Chat, Driver Location, System. Mỗi loại có dữ liệu và destination (WebSocket endpoint) khác nhau.
+**Bài toán**: Communication Service cần gửi nhiều loại notification qua WebSocket: Order, Chat, Driver Location, System. Mỗi loại có dữ liệu và destination (WebSocket endpoint) khác nhau. Việc dùng `switch-case` thông thường sẽ phải sửa Factory mỗi khi có loại thông báo mới.
 
-#### 📁 File 1: [Notification.java](file:///c:/Source%20Code/Java/eatzy/eatzy-microservices/eatzy-communication-service/src/main/java/com/eatzy/communication/designpattern/factory/Notification.java) — Abstract Product
+#### 📁 File 1: [INotificationCreator.java](file:///c:/Source%20Code/Java/eatzy/eatzy-microservices/eatzy-communication-service/src/main/java/com/eatzy/communication/designpattern/factory/INotificationCreator.java) — Abstract Creator Interface
+
+```java
+public interface INotificationCreator {
+    String getType();
+    Notification createNotification();
+}
+```
+
+#### 📁 File 2: [OrderNotificationCreator.java](file:///c:/Source%20Code/Java/eatzy/eatzy-microservices/eatzy-communication-service/src/main/java/com/eatzy/communication/designpattern/factory/OrderNotificationCreator.java) — Concrete Creator
+
+```java
+@Component
+public class OrderNotificationCreator implements INotificationCreator {
+    @Override
+    public String getType() { return NotificationFactory.TYPE_ORDER_STATUS; }
+
+    @Override
+    public Notification createNotification() { return new OrderNotification(); }
+}
+```
+*(Các class `ChatNotificationCreator`, `DriverLocationNotificationCreator`, `SystemNotificationCreator` được thiết kế tương tự)*
+
+#### 📁 File 3: [Notification.java](file:///c:/Source%20Code/Java/eatzy/eatzy-microservices/eatzy-communication-service/src/main/java/com/eatzy/communication/designpattern/factory/Notification.java) — Abstract Product
 
 ```java
 public abstract class Notification {
@@ -1424,66 +1451,45 @@ public abstract class Notification {
 }
 ```
 
-#### 📁 File 2-5: Concrete Products
-
-| File | Destination | Dữ liệu riêng |
-|---|---|---|
-| [OrderNotification](file:///c:/Source%20Code/Java/eatzy/eatzy-microservices/eatzy-communication-service/src/main/java/com/eatzy/communication/designpattern/factory/OrderNotification.java) | `/queue/orders` | orderId, orderStatus |
-| [ChatNotification](file:///c:/Source%20Code/Java/eatzy/eatzy-microservices/eatzy-communication-service/src/main/java/com/eatzy/communication/designpattern/factory/ChatNotification.java) | `/queue/chat/order/{orderId}` | senderId, senderName, senderType |
-| [DriverLocationNotification](file:///c:/Source%20Code/Java/eatzy/eatzy-microservices/eatzy-communication-service/src/main/java/com/eatzy/communication/designpattern/factory/DriverLocationNotification.java) | `/queue/driver-location` | latitude, longitude |
-| [SystemNotification](file:///c:/Source%20Code/Java/eatzy/eatzy-microservices/eatzy-communication-service/src/main/java/com/eatzy/communication/designpattern/factory/SystemNotification.java) | `/queue/system` | title, severity |
-
-#### 📁 File 6: [NotificationFactory.java](file:///c:/Source%20Code/Java/eatzy/eatzy-microservices/eatzy-communication-service/src/main/java/com/eatzy/communication/designpattern/factory/NotificationFactory.java) — Creator
+#### 📁 File 4: [NotificationFactory.java](file:///c:/Source%20Code/Java/eatzy/eatzy-microservices/eatzy-communication-service/src/main/java/com/eatzy/communication/designpattern/factory/NotificationFactory.java) — Orchestrating Creator (Không còn Switch-Case)
 
 ```java
+@Component
 public class NotificationFactory {
+    
+    // Tự động tiêm (inject) tất cả các bean implement INotificationCreator vào Map
+    private final Map<String, INotificationCreator> creatorRegistry = new HashMap<>();
 
-    // Dòng 25-48: Core Factory Method — tạo đúng loại dựa trên type string
-    public static Notification create(String type) {
-        Notification notification;
-        switch (type) {
-            case "ORDER_STATUS":    notification = new OrderNotification(); break;
-            case "CHAT_MESSAGE":    notification = new ChatNotification(); break;
-            case "DRIVER_LOCATION": notification = new DriverLocationNotification(); break;
-            case "SYSTEM":          notification = new SystemNotification(); break;
-            default: throw new IllegalArgumentException("Unknown type: " + type);
+    @Autowired
+    public NotificationFactory(List<INotificationCreator> creators) {
+        for (INotificationCreator creator : creators) {
+            creatorRegistry.put(creator.getType(), creator);
         }
+    }
+
+    // Triệt tiêu hoàn toàn khối switch-case
+    public Notification create(String type) {
+        INotificationCreator creator = creatorRegistry.get(type);
+        if (creator == null) {
+            throw new IllegalArgumentException("Unknown notification type: " + type);
+        }
+
+        Notification notification = creator.createNotification();
         notification.setType(type);
         notification.setTimestamp(Instant.now());
         return notification;
     }
 
     // ═══ Convenience Methods — Shortcut cho từng loại ═══
-
-    // Tạo order notification nhanh
-    public static OrderNotification createOrderNotification(
-            String recipientEmail, Long orderId, String orderStatus, String message, Object data) {
-        OrderNotification n = (OrderNotification) create("ORDER_STATUS");
-        n.setRecipientEmail(recipientEmail);
-        n.setOrderId(orderId);
-        n.setOrderStatus(orderStatus);
-        n.setMessage(message);
-        n.setData(data);
-        return n;
-    }
-
-    // Tạo chat notification
-    public static ChatNotification createChatNotification(
-            String recipientEmail, Long orderId, Long senderId, String senderName,
-            String senderType, String message) { ... }
-
-    // Tạo driver location notification
-    public static DriverLocationNotification createDriverLocationNotification(
-            String recipientEmail, BigDecimal latitude, BigDecimal longitude) { ... }
-
-    // Tạo system notification (được dùng trong RestaurantEventListener)
-    public static SystemNotification createSystemNotification(
-            String recipientEmail, String title, String message, String severity) { ... }
+    public OrderNotification createOrderNotification(...) { ... }
+    public ChatNotification createChatNotification(...) { ... }
+    public DriverLocationNotification createDriverLocationNotification(...) { ... }
+    public SystemNotification createSystemNotification(...) { ... }
 }
 ```
 
 > [!TIP]
-> **Lợi ích khi scale**: Thêm "PromotionNotification" (thông báo khuyến mãi), "ReviewNotification" (thông báo đánh giá mới)? Tạo subclass mới + thêm case vào switch — **WebSocketService không đổi** vì nó chỉ gọi `notification.getDestination()`.
+> **Lợi ích khi scale (Sức mạnh của IoC)**: Thêm `PromotionNotification` (thông báo khuyến mãi)? Chỉ cần tạo class notification mới và một class `PromotionNotificationCreator` có gắn `@Component`. Code tự động chạy, **KHÔNG CẦN SỬA ĐỔI BẤT KỲ DÒNG CODE NÀO** ở `NotificationFactory`. Đây là minh chứng hoàn hảo cho thiết kế tuân thủ SOLID (cụ thể là OCP - Open/Closed Principle).
 
 ---
 
