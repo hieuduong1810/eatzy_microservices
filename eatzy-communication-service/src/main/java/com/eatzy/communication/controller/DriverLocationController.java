@@ -26,12 +26,15 @@ public class DriverLocationController {
     private final AuthServiceClient authServiceClient;
     private final OrderServiceClient orderServiceClient;
 
+    private final NotificationFactory notificationFactory;
+
     public DriverLocationController(RedisGeoService redisGeoService, WebSocketService webSocketService,
-            AuthServiceClient authServiceClient, OrderServiceClient orderServiceClient) {
+            AuthServiceClient authServiceClient, OrderServiceClient orderServiceClient, NotificationFactory notificationFactory) {
         this.redisGeoService = redisGeoService;
         this.webSocketService = webSocketService;
         this.authServiceClient = authServiceClient;
         this.orderServiceClient = orderServiceClient;
+        this.notificationFactory = notificationFactory;
     }
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(DriverLocationController.class);
@@ -69,7 +72,7 @@ public class DriverLocationController {
             if (customerObj instanceof Map) {
                 String customerEmail = (String) ((Map<?, ?>) customerObj).get("email");
                 if (customerEmail != null) {
-                    DriverLocationNotification n = NotificationFactory.createDriverLocationNotification(
+                    DriverLocationNotification n = notificationFactory.createDriverLocationNotification(
                             customerEmail, locationUpdate.getLatitude(), locationUpdate.getLongitude());
                     webSocketService.pushNotification(n);
                 }

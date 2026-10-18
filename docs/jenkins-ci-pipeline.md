@@ -2,7 +2,7 @@
 
 Tài liệu này mô tả pipeline CI hiện tại của dự án Eatzy Microservices khi chạy bằng Jenkins Multibranch Pipeline.
 
-Pipeline được định nghĩa trong file [`Jenkinsfile`](../Jenkinsfile).
+Pipeline được định nghĩa trong file [`Jenkinsfile`](../Jenkinsfile). Xem thêm [tổng quan CI/CD của main và việc chuyển công cụ](main-ci-cd.md).
 
 ## Mục tiêu
 
@@ -10,8 +10,8 @@ CI pipeline có các mục tiêu chính:
 
 - Kiểm tra code mới trên từng branch.
 - Build artifact Java bằng Gradle.
-- Đóng gói Docker image cho tất cả service.
-- Push image lên Docker Hub với tag theo branch và commit.
+- Chỉ trên main: đóng gói Docker image cho tất cả service.
+- Chỉ trên main: push image lên Docker Hub với tag latest và main-<commit>.
 - Chỉ deploy khi build trên branch `main`.
 
 ## Tổng quan luồng CI/CD
@@ -35,11 +35,9 @@ Run Gradle tests
 Build Java bootJar artifacts
     |
     v
-Build and push Docker images
+    +--> branch != main: kết thúc sau test và build JAR
     |
-    +--> branch != main: dừng sau CI
-    |
-    +--> branch == main: deploy lên server
+    +--> branch == main: build/push Docker images, sau đó deploy lên server
 ```
 
 ## Hành vi theo branch
@@ -47,8 +45,8 @@ Build and push Docker images
 | Branch | Test | Build jar | Build image | Push image | Deploy |
 |---|---:|---:|---:|---:|---:|
 | `main` | Có | Có | Có | Có | Có |
-| `feat/*` | Có | Có | Có | Có | Không |
-| Branch khác | Có | Có | Có | Có | Không |
+| `feat/*` | Có | Có | Không | Không | Không |
+| Branch khác | Có | Có | Không | Không | Không |
 
 Deploy được chặn bằng điều kiện:
 
@@ -62,39 +60,12 @@ when {
 
 ## Docker image tags
 
-Pipeline tạo tag dựa trên branch và commit.
+Chỉ main chạy stage Build & Push Docker Images. Mỗi image có hai tag:
 
-Với branch khác `main`:
+- `latest`: được production compose sử dụng.
+- `main-<short-commit>`: truy vết image theo commit.
 
-```text
-<branch-safe-name>-<short-commit>
-```
-
-Ví dụ:
-
-```text
-feat-vu-66dea5b
-```
-
-Với branch `main`, pipeline tạo 2 tag:
-
-```text
-latest
-main-<short-commit>
-```
-
-Ví dụ:
-
-```text
-latest
-main-66dea5b
-```
-
-Lý do:
-
-- `latest` để production compose file có thể pull image mới nhất.
-- `main-<commit>` để truy vết image được build từ commit nào.
-- Branch feature không ghi đè `latest`, tránh ảnh hưởng production.
+Hàm imageTagsForBuild() vẫn có logic tính tag cho nhánh khác, nhưng stage build/push hiện bị bỏ qua trên các nhánh đó.
 
 ## Services được build
 
@@ -163,17 +134,9 @@ Windows:
 gradlew.bat test --parallel --continue
 ```
 
-Stage này đang được bọc trong:
+Stage Test hiện không có catchError để bỏ qua lỗi. Nếu Gradle trả mã lỗi, pipeline thất bại và các stage build/push/deploy kế tiếp không chạy.
 
-```groovy
-catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE')
-```
-
-Ý nghĩa:
-
-- Nếu test fail, stage được đánh dấu `UNSTABLE`.
-- Build tổng thể vẫn có thể tiếp tục.
-- Đây là cấu hình tạm thời vì dự án chưa có đầy đủ unit/integration tests.
+--continue giúp chạy tiếp các task có thể thực hiện để thu thập thêm kết quả; nó không bỏ qua trạng thái thất bại cuối cùng.
 
 Pipeline publish JUnit report:
 
@@ -383,7 +346,7 @@ Push event to branch feat/vu
 Connecting to https://api.github.com using ...
 BUILD SUCCESSFUL
 1 file(s) copied.
-docker push honguynvu/eatzy-discovery-server:feat-vu-<commit>
+Stage "Build & Push Docker Images" skipped due to when conditional
 Stage "Deploy" skipped due to when conditional
 Pipeline succeeded on branch feat/vu
 Finished: SUCCESS
@@ -394,7 +357,7 @@ Finished: SUCCESS
 - Jenkins đã dùng GitHub credential, không còn anonymous API.
 - Test và `bootJar` đã thành công.
 - `docker-artifacts/` đã được tạo đúng.
-- Image branch được push bằng tag riêng.
+- Build/push Docker image được bỏ qua trên branch feature.
 - Deploy không chạy trên branch feature.
 
 ## Cách chạy CI trước khi push

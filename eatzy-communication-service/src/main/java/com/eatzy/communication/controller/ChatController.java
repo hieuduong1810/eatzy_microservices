@@ -30,11 +30,14 @@ public class ChatController {
     private final ChatMessageService chatMessageService;
     private final OrderServiceClient orderServiceClient;
 
+    private final NotificationFactory notificationFactory;
+
     public ChatController(WebSocketService webSocketService, ChatMessageService chatMessageService,
-            OrderServiceClient orderServiceClient) {
+            OrderServiceClient orderServiceClient, NotificationFactory notificationFactory) {
         this.webSocketService = webSocketService;
         this.chatMessageService = chatMessageService;
         this.orderServiceClient = orderServiceClient;
+        this.notificationFactory = notificationFactory;
     }
 
     @MessageMapping("/chat/{orderId}")
@@ -87,7 +90,7 @@ public class ChatController {
         // Push via Factory
         if (customerEmail != null && message.getSenderType().equals("DRIVER")) {
             // Send to Customer
-            ChatNotification notification = NotificationFactory.createChatNotification(
+            ChatNotification notification = notificationFactory.createChatNotification(
                     customerEmail, orderId, message.getSenderId(), message.getSenderName(),
                     message.getSenderType(), message.getMessage());
             webSocketService.pushNotification(notification);
@@ -95,7 +98,7 @@ public class ChatController {
 
         if (driverEmail != null && message.getSenderType().equals("CUSTOMER")) {
             // Send to Driver
-            ChatNotification notification = NotificationFactory.createChatNotification(
+            ChatNotification notification = notificationFactory.createChatNotification(
                     driverEmail, orderId, message.getSenderId(), message.getSenderName(),
                     message.getSenderType(), message.getMessage());
             webSocketService.pushNotification(notification);

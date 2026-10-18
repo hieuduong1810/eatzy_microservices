@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -13,7 +12,6 @@ import org.springframework.stereotype.Service;
 import com.eatzy.common.dto.ResultPaginationDTO;
 import com.eatzy.common.exception.IdInvalidException;
 import com.eatzy.common.service.MapboxService;
-import com.eatzy.restaurant.designpattern.observer.RestaurantApprovedEvent;
 import com.eatzy.restaurant.designpattern.strategy.commission.CommissionStrategy;
 import com.eatzy.restaurant.designpattern.strategy.ranking.GuestRankingStrategy;
 import com.eatzy.restaurant.designpattern.strategy.ranking.PersonalizedRankingStrategy;
@@ -41,7 +39,6 @@ import lombok.extern.slf4j.Slf4j;
 public class RestaurantService {
 
     private final RestaurantRepository restaurantRepository;
-    private final ApplicationEventPublisher eventPublisher; // Observer Pattern
     private final MapboxService mapboxService;
     private final Map<String, CommissionStrategy> strategyMap; // Strategy Pattern
     private final RestaurantMapper restaurantMapper;
@@ -51,7 +48,6 @@ public class RestaurantService {
     private final RestaurantEventProducer restaurantEventProducer;
 
     public RestaurantService(RestaurantRepository restaurantRepository,
-            ApplicationEventPublisher eventPublisher,
             MapboxService mapboxService,
             Map<String, CommissionStrategy> strategyMap,
             RestaurantMapper restaurantMapper,
@@ -60,7 +56,6 @@ public class RestaurantService {
             InteractionServiceClient interactionServiceClient,
             RestaurantEventProducer restaurantEventProducer) {
         this.restaurantRepository = restaurantRepository;
-        this.eventPublisher = eventPublisher;
         this.mapboxService = mapboxService;
         this.strategyMap = strategyMap;
         this.restaurantMapper = restaurantMapper;
@@ -167,8 +162,9 @@ public class RestaurantService {
     // ==================== DESIGN PATTERN ENDPOINTS ====================
 
     /**
-     * ★ OBSERVER PATTERN (#3): Duyet nha hang - phat event de cac Listener tu dong
-     * chay.
+     * Duyet nha hang - phat Kafka event de communication-service gui email + WebSocket.
+     * Thay the Spring local Observer Pattern bang Distributed Observer (Kafka).
+     * restaurant-service khong can biet communication-service ton tai.
      */
     public ResRestaurantDTO approveRestaurant(Long id) throws IdInvalidException {
         Restaurant restaurant = getRestaurantById(id);
@@ -180,8 +176,8 @@ public class RestaurantService {
         Restaurant saved = restaurantRepository.save(restaurant);
         log.info("✅ Restaurant approved: {} (ID: {})", saved.getName(), saved.getId());
 
-        // Ban event -> RestaurantApprovedListener se tu dong bat va gui email
-        eventPublisher.publishEvent(new RestaurantApprovedEvent(this, saved));
+        // Publish Kafka event -> communication-service will handle email + WebSocket
+        restaurantEventProducer.publishRestaurantApproved(saved);
 
         return restaurantMapper.convertToDTO(saved);
     }

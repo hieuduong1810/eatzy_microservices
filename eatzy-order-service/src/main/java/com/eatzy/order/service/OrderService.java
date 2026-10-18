@@ -9,6 +9,7 @@ import com.eatzy.order.designpattern.adapter.PaymentServiceClient;
 import com.eatzy.order.designpattern.adapter.PaymentServiceClient.CalculateDiscountReq;
 import com.eatzy.order.designpattern.adapter.RestaurantServiceClient;
 import com.eatzy.order.designpattern.adapter.SystemConfigServiceClient;
+import com.eatzy.order.designpattern.facade.OrderCreationFacade;
 
 import com.eatzy.common.service.MapboxService;
 import com.eatzy.common.service.RedisGeoService;
@@ -66,6 +67,7 @@ public class OrderService {
     private final RedisGeoService redisGeoService;
     private final RedisRejectionService redisRejectionService;
     private final OrderEarningsSummaryService orderEarningsSummaryService;
+    private final OrderCreationFacade orderCreationFacade;
 
     public OrderService(OrderRepository orderRepository,
             OrderMapper orderMapper,
@@ -79,7 +81,8 @@ public class OrderService {
             SystemConfigServiceClient systemConfigServiceClient,
             RedisRejectionService redisRejectionService,
             RedisGeoService redisGeoService,
-            OrderEarningsSummaryService orderEarningsSummaryService) {
+            OrderEarningsSummaryService orderEarningsSummaryService,
+            OrderCreationFacade orderCreationFacade) {
         this.orderRepository = orderRepository;
         this.orderMapper = orderMapper;
         this.orderEventProducer = orderEventProducer;
@@ -93,6 +96,7 @@ public class OrderService {
         this.redisRejectionService = redisRejectionService;
         this.redisGeoService = redisGeoService;
         this.orderEarningsSummaryService = orderEarningsSummaryService;
+        this.orderCreationFacade = orderCreationFacade;
     }
 
     // ==================== QUERY METHODS ====================
@@ -276,231 +280,7 @@ public class OrderService {
     @Transactional(rollbackFor = Exception.class)
     public ResOrderDTO createOrderFromReqDTO(ReqOrderDTO reqOrderDTO, String clientIp, String baseUrl)
             throws IdInvalidException {
-        // 1. Validate customer via REST (Adapter Pattern)
-        if (reqOrderDTO.getCustomer() == null || reqOrderDTO.getCustomer().getId() == null) {
-            throw new IdInvalidException("Customer is required");
-        }
-        Map<String, Object> customerData = authServiceClient.getUserById(reqOrderDTO.getCustomer().getId());
-        if (customerData == null) {
-            throw new IdInvalidException("Customer not found with id: " + reqOrderDTO.getCustomer().getId());
-        }
-
-        // 2. Validate restaurant via REST (Adapter Pattern)
-        if (reqOrderDTO.getRestaurant() == null || reqOrderDTO.getRestaurant().getId() == null) {
-            throw new IdInvalidException("Restaurant is required");
-        }
-        Map<String, Object> restData = restaurantServiceClient.getRestaurantById(reqOrderDTO.getRestaurant().getId());
-        if (restData == null) {
-            throw new IdInvalidException("Restaurant not found with id: " + reqOrderDTO.getRestaurant().getId());
-        }
-
-        // 3. Build Order entity (Builder Pattern)
-        Order order = Order.builder()
-                .customerId(reqOrderDTO.getCustomer().getId())
-                .restaurantId(reqOrderDTO.getRestaurant().getId())
-                .orderStatus(OrderStatus.PENDING.name())
-                .deliveryAddress(reqOrderDTO.getDeliveryAddress())
-                .deliveryLatitude(reqOrderDTO.getDeliveryLatitude() != null
-                        ? BigDecimal.valueOf(reqOrderDTO.getDeliveryLatitude())
-                        : null)
-                .deliveryLongitude(reqOrderDTO.getDeliveryLongitude() != null
-                        ? BigDecimal.valueOf(reqOrderDTO.getDeliveryLongitude())
-                        : null)
-                .specialInstructions(reqOrderDTO.getSpecialInstructions())
-                .paymentMethod(reqOrderDTO.getPaymentMethod())
-                .paymentStatus(reqOrderDTO.getPaymentStatus() != null ? reqOrderDTO.getPaymentStatus() : "UNPAID")
-                .createdAt(Instant.now())
-                .build();
-
-        // Set driver if provided
-        if (reqOrderDTO.getDriver() != null && reqOrderDTO.getDriver().getId() != null) {
-            order.setDriverId(reqOrderDTO.getDriver().getId());
-        }
-
-        // Set voucher IDs
-        if (reqOrderDTO.getVouchers() != null && !reqOrderDTO.getVouchers().isEmpty()) {
-            List<Long> voucherIds = reqOrderDTO.getVouchers().stream()
-                    .filter(v -> v.getId() != null)
-                    .map(ReqOrderDTO.Voucher::getId)
-                    .collect(Collectors.toList());
-            order.setVoucherIds(voucherIds);
-        }
-
-        // 4. Calculate delivery fee using real driving distance & dynamic pricing
-        BigDecimal baseFee = getSystemConfigValue("DELIVERY_BASE_FEE");
-        BigDecimal baseDistance = getSystemConfigValue("DELIVERY_BASE_DISTANCE");
-        BigDecimal perKmFee = getSystemConfigValue("DELIVERY_PER_KM_FEE");
-        BigDecimal minFee = getSystemConfigValue("DELIVERY_MIN_FEE");
-
-        BigDecimal restLat = getBigDecimalValue(restData, "latitude");
-        BigDecimal restLng = getBigDecimalValue(restData, "longitude");
-        BigDecimal deliveryFee = baseFee;
-
-        if (restLat != null && restLng != null && order.getDeliveryLatitude() != null
-                && order.getDeliveryLongitude() != null) {
-
-            BigDecimal distance = mapboxService.getDrivingDistance(restLat, restLng,
-                    order.getDeliveryLatitude(), order.getDeliveryLongitude());
-
-            if (distance != null) {
-                BigDecimal surgeMultiplier = dynamicPricingService.getSurgeMultiplier(restLat, restLng);
-                deliveryFee = deliveryFeeCalculator.calculate(distance, baseFee, baseDistance, perKmFee,
-                        surgeMultiplier, minFee);
-            }
-        }
-
-        // Validate delivery fee
-        if (reqOrderDTO.getDeliveryFee() != null) {
-            BigDecimal clientFee = reqOrderDTO.getDeliveryFee().setScale(0, RoundingMode.HALF_UP);
-            BigDecimal serverFee = deliveryFee.setScale(0, RoundingMode.HALF_UP);
-            if (clientFee.compareTo(serverFee) != 0) {
-                throw new IdInvalidException("Phí giao hàng đã thay đổi. Vui lòng tải lại trang. (Giá cũ: " + clientFee
-                        + " VND, Giá mới: " + serverFee + " VND)");
-            }
-        }
-        order.setDeliveryFee(deliveryFee);
-
-        // 5. Save order first
-        Order savedOrder = orderRepository.save(order);
-
-        // 6. Create order items
-        BigDecimal subtotal = BigDecimal.ZERO;
-        if (reqOrderDTO.getOrderItems() != null && !reqOrderDTO.getOrderItems().isEmpty()) {
-            List<OrderItem> orderItems = new ArrayList<>();
-            for (ReqOrderDTO.OrderItem reqItem : reqOrderDTO.getOrderItems()) {
-                if (reqItem.getDish() == null || reqItem.getDish().getId() == null) {
-                    throw new IdInvalidException("Dish is required for order item");
-                }
-                // Validate dish via REST
-                Map<String, Object> dishData = restaurantServiceClient.getDishById(reqItem.getDish().getId());
-                if (dishData == null) {
-                    throw new IdInvalidException("Dish not found with id: " + reqItem.getDish().getId());
-                }
-                if (reqItem.getQuantity() == null || reqItem.getQuantity() <= 0) {
-                    throw new IdInvalidException("Quantity must be greater than 0");
-                }
-
-                BigDecimal dishPrice = getBigDecimalValue(dishData, "price");
-                BigDecimal itemPrice = dishPrice.multiply(new BigDecimal(reqItem.getQuantity()));
-
-                OrderItem orderItem = OrderItem.builder()
-                        .order(savedOrder)
-                        .dishId(reqItem.getDish().getId())
-                        .quantity(reqItem.getQuantity())
-                        .build();
-
-                // Process options
-                if (reqItem.getOrderItemOptions() != null && !reqItem.getOrderItemOptions().isEmpty()) {
-                    List<OrderItemOption> itemOptions = new ArrayList<>();
-                    for (ReqOrderDTO.OrderItem.OrderItemOption reqOption : reqItem.getOrderItemOptions()) {
-                        if (reqOption.getMenuOption() == null || reqOption.getMenuOption().getId() == null) {
-                            throw new IdInvalidException("Menu option is required");
-                        }
-                        Map<String, Object> menuOptionData = restaurantServiceClient
-                                .getMenuOptionById(reqOption.getMenuOption().getId());
-                        if (menuOptionData == null) {
-                            throw new IdInvalidException(
-                                    "Menu option not found with id: " + reqOption.getMenuOption().getId());
-                        }
-
-                        BigDecimal optionPrice = getBigDecimalValue(menuOptionData, "priceAdjustment");
-                        String optionName = getStringValue(menuOptionData, "name");
-
-                        OrderItemOption itemOption = OrderItemOption.builder()
-                                .orderItem(orderItem)
-                                .menuOptionId(reqOption.getMenuOption().getId())
-                                .optionName(optionName)
-                                .priceAtPurchase(optionPrice)
-                                .build();
-                        itemOptions.add(itemOption);
-                        itemPrice = itemPrice.add(optionPrice.multiply(new BigDecimal(reqItem.getQuantity())));
-                    }
-                    orderItem.setOrderItemOptions(itemOptions);
-                }
-
-                orderItem.setPriceAtPurchase(itemPrice);
-                subtotal = subtotal.add(itemPrice);
-                orderItems.add(orderItem);
-            }
-            savedOrder.setOrderItems(orderItems);
-        }
-
-        // 7. Set final amounts
-        savedOrder.setSubtotal(subtotal);
-
-        BigDecimal discountAmount = BigDecimal.ZERO;
-        if (savedOrder.getVoucherIds() != null && !savedOrder.getVoucherIds().isEmpty()) {
-            try {
-                CalculateDiscountReq req = new CalculateDiscountReq(
-                        savedOrder.getVoucherIds(),
-                        subtotal,
-                        savedOrder.getRestaurantId(),
-                        savedOrder.getCustomerId(),
-                        deliveryFee);
-                discountAmount = paymentServiceClient.calculateVoucherDiscount(req);
-            } catch (Exception e) {
-                // Ignore error, just keep discount 0
-            }
-        }
-
-        savedOrder.setDiscountAmount(discountAmount);
-
-        savedOrder.setTotalAmount(subtotal.add(deliveryFee).subtract(discountAmount));
-
-        savedOrder = orderRepository.save(savedOrder);
-
-        // 8. Publish Kafka event (Observer/Pub-Sub Pattern)
-        orderEventProducer.publishOrderCreated(new OrderCreatedEvent(
-                savedOrder.getId(), savedOrder.getCustomerId(), savedOrder.getRestaurantId(),
-                savedOrder.getTotalAmount(), savedOrder.getOrderStatus()));
-
-        // 9. Track user scoring for placing order (Interaction Service)
-        orderEventProducer.publishTrackPlaceOrder(savedOrder.getCustomerId(), savedOrder.getRestaurantId());
-
-        // 10. Process payment based on payment method via Adapter Pattern
-        ResOrderDTO orderDTO = orderMapper.toResOrderDTO(savedOrder);
-        try {
-            PaymentServiceClient.ReqPaymentInitiateDTO paymentReq = new PaymentServiceClient.ReqPaymentInitiateDTO(
-                    savedOrder.getId(),
-                    savedOrder.getCustomerId(),
-                    savedOrder.getTotalAmount(),
-                    savedOrder.getPaymentMethod(),
-                    clientIp,
-                    baseUrl,
-                    savedOrder.getDriverId());
-
-            Map<String, Object> paymentResult = paymentServiceClient.initiatePayment(paymentReq);
-
-            if (paymentResult != null) {
-                if (paymentResult.containsKey("paymentUrl")) {
-                    orderDTO.setVnpayPaymentUrl((String) paymentResult.get("paymentUrl"));
-                }
-                if (paymentResult.containsKey("status")) {
-                    String newStatus = (String) paymentResult.get("status");
-                    if (!savedOrder.getPaymentStatus().equals(newStatus)) {
-                        savedOrder.setPaymentStatus(newStatus);
-                        orderRepository.save(savedOrder);
-                        orderDTO.setPaymentStatus(newStatus);
-                    }
-                }
-
-                // If payment was WALLET and it failed (success = false), throw exception to
-                // rollback
-                if (paymentResult.containsKey("success") && !(Boolean) paymentResult.get("success")) {
-                    throw new IdInvalidException(
-                            paymentResult.get("message") != null ? (String) paymentResult.get("message")
-                                    : "Wallet payment failed");
-                }
-            }
-        } catch (IdInvalidException e) {
-            throw e; // rethrow to trigger rollback
-        } catch (Exception e) {
-            log.error("Failed to initiate payment: {}", e.getMessage());
-            // Throw an exception to rollback the order instead of swallowing it
-            throw new IdInvalidException("Failed to initiate payment: " + e.getMessage());
-        }
-
-        return orderDTO;
+        return orderCreationFacade.createOrder(reqOrderDTO, clientIp, baseUrl);
     }
 
     // ==================== STATUS TRANSITION METHODS (State Pattern)

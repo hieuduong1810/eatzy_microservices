@@ -118,16 +118,20 @@ eatzy-auth-service/build/test-results/test/*.xml
 
 | Service | Test | Loại |
 |---|---|---|
-| `eatzy-auth-service` | `UserServiceTest` (15 tests) | Unit test — Mockito |
+| `eatzy-auth-service` | `UserServiceTest` (16 tests) | Unit test — Mockito |
+| `eatzy-cart-service` | `CartServiceTest` (2 tests) | Unit test — Mockito |
+| `eatzy-order-service` | `OrderServiceTest` (2 tests) | Unit test — Mockito |
+| `eatzy-restaurant-service` | `RestaurantServiceTest` (2 tests) | Unit test — Mockito |
+| `eatzy-config-server` | `contextLoads()` (1 test) | Spring context test |
 | `eatzy-api-gateway` | Boilerplate (commented out) | — |
-| `eatzy-config-server` | Boilerplate `contextLoads()` | Sẽ fail nếu không có infrastructure |
 | `eatzy-discovery-server` | Boilerplate (commented out) | — |
 | Các service còn lại | Chưa có | — |
 
-> **Lưu ý:** Boilerplate `@SpringBootTest contextLoads()` yêu cầu DB, Kafka, Redis đang chạy mới pass được.
-> Unit test trong `eatzy-auth-service` dùng Mockito nên không cần infrastructure — chạy được ngay.
+> Các unit test auth, cart, order và restaurant dùng Mockito nên không cần chạy hạ tầng nghiệp vụ thật.
+> Test config-server tải Spring context theo cấu hình hiện tại. Khi Eureka/Logstash không chạy, có thể xuất hiện cảnh báo và thời gian chờ; không nên mặc định mọi context test đều cần DB/Kafka/Redis.
 
 ---
+
 
 ## Thêm test cho service mới
 
@@ -173,8 +177,8 @@ class MyServiceTest {
 
 ## Chạy test trong Jenkins
 
-Jenkins tự động chạy stage **Test** khi push lên bất kỳ branch nào.
-Nếu test fail, build sẽ bị đánh dấu **UNSTABLE** (không block deploy).
+Jenkins chạy stage **Test** cho các branch được Multibranch Pipeline theo dõi khi có trigger build.
+Nếu Gradle test thất bại, pipeline thất bại và chặn các stage build/push/deploy kế tiếp. --continue không bỏ qua lỗi test.
 
 Xem kết quả trên Jenkins UI:
 1. Vào job build tương ứng
