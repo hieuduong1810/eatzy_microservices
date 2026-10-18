@@ -1,5 +1,7 @@
 # Testing Guide — Eatzy Microservices
 
+> CI/CD hiện tại dùng GitHub Actions, xem [main-ci-cd.md](main-ci-cd.md). Các phần Jenkins bên dưới mô tả pipeline lưu trữ tại ci/Jenkinsfile.jenkins.
+
 ## Yêu cầu
 
 | Công cụ | Version | Ghi chú |

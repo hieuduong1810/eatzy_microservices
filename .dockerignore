@@ -1,6 +1,27 @@
+# Generated files; Docker consumes only docker-artifacts/*.jar.
 build/
+**/build/
 bin/
+**/bin/
 .gradle/
 .idea/
 *.iml
 .vscode/
+.git/
+.claude/
+.agents/
+
+# Runtime secrets are supplied through env_file or bind mounts.
+.env
+.env.*
+**/.env
+**/.env.*
+**/*.jks
+**/*.p12
+**/*.pem
+
+# Python caches and local environments.
+**/__pycache__/
+**/*.pyc
+**/.venv/
+**/venv/

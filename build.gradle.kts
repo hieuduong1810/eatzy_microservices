@@ -49,3 +49,35 @@ subprojects {
         useJUnitPlatform()
     }
 }
+
+
+// Build the executable JARs consumed by the Java Dockerfiles.
+// This task is also usable by local development and either CI provider.
+val dockerJavaServices = listOf(
+    "eatzy-discovery-server",
+    "eatzy-config-server",
+    "eatzy-api-gateway",
+    "eatzy-auth-service",
+    "eatzy-restaurant-service",
+    "eatzy-order-service",
+    "eatzy-communication-service",
+    "eatzy-cart-service",
+    "eatzy-payment-service",
+    "eatzy-interaction-service",
+    "eatzy-system-config-service"
+)
+
+tasks.register<Sync>("prepareDockerArtifacts") {
+    group = "distribution"
+    description = "Build all Java services and collect executable JARs for Docker."
+    into(layout.projectDirectory.dir("docker-artifacts"))
+
+    dockerJavaServices.forEach { serviceName ->
+        val serviceJar = project(":$serviceName")
+            .tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar")
+        dependsOn(serviceJar)
+        from(serviceJar.flatMap { it.archiveFile }) {
+            rename { "$serviceName.jar" }
+        }
+    }
+}

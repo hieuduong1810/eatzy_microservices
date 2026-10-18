@@ -1,8 +1,8 @@
 # Jenkins CI Pipeline - Eatzy Microservices
 
-Tài liệu này mô tả pipeline CI hiện tại của dự án Eatzy Microservices khi chạy bằng Jenkins Multibranch Pipeline.
+Tài liệu lưu trữ pipeline Jenkins trước khi chuyển về GitHub Actions. Jenkins hiện tạm ngưng; xem [CI/CD hiện tại](main-ci-cd.md).
 
-Pipeline được định nghĩa trong file [`Jenkinsfile`](../Jenkinsfile). Xem thêm [tổng quan CI/CD của main và việc chuyển công cụ](main-ci-cd.md).
+Pipeline được định nghĩa trong file [`ci/Jenkinsfile.jenkins`](../ci/Jenkinsfile.jenkins). Xem thêm [tổng quan CI/CD của main và việc chuyển công cụ](main-ci-cd.md).
 
 ## Mục tiêu
 
