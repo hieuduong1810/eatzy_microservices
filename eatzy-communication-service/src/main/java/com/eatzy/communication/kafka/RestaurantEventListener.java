@@ -30,11 +30,14 @@ public class RestaurantEventListener {
 
     private final EmailSenderService emailSenderService;
     private final WebSocketService webSocketService;
+    private final NotificationFactory notificationFactory;
 
     public RestaurantEventListener(EmailSenderService emailSenderService,
-                                    WebSocketService webSocketService) {
+                                    WebSocketService webSocketService,
+                                    NotificationFactory notificationFactory) {
         this.emailSenderService = emailSenderService;
         this.webSocketService = webSocketService;
+        this.notificationFactory = notificationFactory;
     }
 
     @KafkaListener(topics = "restaurant-events", groupId = "communication-group",
@@ -78,7 +81,7 @@ public class RestaurantEventListener {
 
         // 2. Push WebSocket notification if owner is online
         try {
-            SystemNotification notification = NotificationFactory.createSystemNotification(
+            SystemNotification notification = notificationFactory.createSystemNotification(
                     event.getOwnerEmail(),
                     "🎊 Nhà hàng được duyệt!",
                     "Nhà hàng " + event.getRestaurantName() + " đã được phê duyệt. Bạn có thể bắt đầu nhận đơn hàng ngay!",

@@ -28,11 +28,14 @@ public class OrderEventListener {
     private final com.eatzy.communication.designpattern.adapter.RestaurantServiceClient restaurantServiceClient;
     private final com.eatzy.communication.service.RedisChatService redisChatService;
 
-    public OrderEventListener(WebSocketService webSocketService, AuthServiceClient authServiceClient, com.eatzy.communication.designpattern.adapter.RestaurantServiceClient restaurantServiceClient, com.eatzy.communication.service.RedisChatService redisChatService) {
+    private final NotificationFactory notificationFactory;
+
+    public OrderEventListener(WebSocketService webSocketService, AuthServiceClient authServiceClient, com.eatzy.communication.designpattern.adapter.RestaurantServiceClient restaurantServiceClient, com.eatzy.communication.service.RedisChatService redisChatService, NotificationFactory notificationFactory) {
         this.webSocketService = webSocketService;
         this.authServiceClient = authServiceClient;
         this.restaurantServiceClient = restaurantServiceClient;
         this.redisChatService = redisChatService;
+        this.notificationFactory = notificationFactory;
     }
 
     @KafkaListener(topics = "order-events", groupId = "communication-group", containerFactory = "kafkaListenerContainerFactory")
@@ -91,21 +94,21 @@ public class OrderEventListener {
 
             // Push to customer
             if (customerEmail != null) {
-                OrderNotification notification = NotificationFactory.createOrderNotification(
+                OrderNotification notification = notificationFactory.createOrderNotification(
                         customerEmail, orderId, status, message, record);
                 webSocketService.pushNotification(notification);
             }
 
             // Push to restaurant
             if (restaurantEmail != null) {
-                OrderNotification notification = NotificationFactory.createOrderNotification(
+                OrderNotification notification = notificationFactory.createOrderNotification(
                         restaurantEmail, orderId, status, message, record);
                 webSocketService.pushNotification(notification);
             }
 
             // Push to driver
             if (driverEmail != null) {
-                OrderNotification notification = NotificationFactory.createOrderNotification(
+                OrderNotification notification = notificationFactory.createOrderNotification(
                         driverEmail, orderId, status, message, record);
                 webSocketService.pushNotification(notification);
             }

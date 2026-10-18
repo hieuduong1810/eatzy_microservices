@@ -20,8 +20,11 @@ public class UserEventListener {
 
     private final WebSocketService webSocketService;
 
-    public UserEventListener(WebSocketService webSocketService) {
+    private final NotificationFactory notificationFactory;
+
+    public UserEventListener(WebSocketService webSocketService, NotificationFactory notificationFactory) {
         this.webSocketService = webSocketService;
+        this.notificationFactory = notificationFactory;
     }
 
     @KafkaListener(topics = "user-events", groupId = "communication-group")
@@ -49,7 +52,7 @@ public class UserEventListener {
                 // User deactivated -> send system notification requiring them to log out or indicating account closure
                 String email = (String) record.get("email");
                 if (email != null) {
-                    SystemNotification notification = NotificationFactory.createSystemNotification(
+                    SystemNotification notification = notificationFactory.createSystemNotification(
                             email, "Account Deactivated", "Your account has been deactivated. Please contact support.", "ERROR"
                     );
                     webSocketService.pushNotification(notification);

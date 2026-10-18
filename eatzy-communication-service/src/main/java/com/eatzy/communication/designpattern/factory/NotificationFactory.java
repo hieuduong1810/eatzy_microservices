@@ -1,13 +1,21 @@
 package com.eatzy.communication.designpattern.factory;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
- * Factory Method Pattern - Creator.
+ * Factory Method Pattern - Creator (Refactored to use Spring Map Injection).
  * Creates the appropriate Notification subclass based on type.
  * Centralizes notification creation logic instead of scattering "new XxxNotification()" everywhere.
+ * Completely eliminates switch-case by using INotificationCreator registry.
  */
+@Component
 public class NotificationFactory {
 
     public static final String TYPE_ORDER_STATUS = "ORDER_STATUS";
@@ -15,33 +23,25 @@ public class NotificationFactory {
     public static final String TYPE_DRIVER_LOCATION = "DRIVER_LOCATION";
     public static final String TYPE_SYSTEM = "SYSTEM";
 
-    private NotificationFactory() {
-        // Utility class
+    private final Map<String, INotificationCreator> creatorRegistry = new HashMap<>();
+
+    @Autowired
+    public NotificationFactory(List<INotificationCreator> creators) {
+        for (INotificationCreator creator : creators) {
+            creatorRegistry.put(creator.getType(), creator);
+        }
     }
 
     /**
-     * Factory Method: creates the correct Notification subclass.
+     * Factory Method: creates the correct Notification subclass using the registry.
      */
-    public static Notification create(String type) {
-        Notification notification;
-
-        switch (type) {
-            case TYPE_ORDER_STATUS:
-                notification = new OrderNotification();
-                break;
-            case TYPE_CHAT_MESSAGE:
-                notification = new ChatNotification();
-                break;
-            case TYPE_DRIVER_LOCATION:
-                notification = new DriverLocationNotification();
-                break;
-            case TYPE_SYSTEM:
-                notification = new SystemNotification();
-                break;
-            default:
-                throw new IllegalArgumentException("Unknown notification type: " + type);
+    public Notification create(String type) {
+        INotificationCreator creator = creatorRegistry.get(type);
+        if (creator == null) {
+            throw new IllegalArgumentException("Unknown notification type: " + type);
         }
 
+        Notification notification = creator.createNotification();
         notification.setType(type);
         notification.setTimestamp(Instant.now());
         return notification;
@@ -52,7 +52,7 @@ public class NotificationFactory {
     /**
      * Create an order notification (NEW_ORDER, ORDER_STATUS_CHANGED, etc.)
      */
-    public static OrderNotification createOrderNotification(
+    public OrderNotification createOrderNotification(
             String recipientEmail, Long orderId, String orderStatus, String message, Object data) {
         OrderNotification n = (OrderNotification) create(TYPE_ORDER_STATUS);
         n.setRecipientEmail(recipientEmail);
@@ -66,7 +66,7 @@ public class NotificationFactory {
     /**
      * Create a chat notification
      */
-    public static ChatNotification createChatNotification(
+    public ChatNotification createChatNotification(
             String recipientEmail, Long orderId, Long senderId, String senderName,
             String senderType, String message) {
         ChatNotification n = (ChatNotification) create(TYPE_CHAT_MESSAGE);
@@ -82,7 +82,7 @@ public class NotificationFactory {
     /**
      * Create a driver location notification
      */
-    public static DriverLocationNotification createDriverLocationNotification(
+    public DriverLocationNotification createDriverLocationNotification(
             String recipientEmail, BigDecimal latitude, BigDecimal longitude) {
         DriverLocationNotification n = (DriverLocationNotification) create(TYPE_DRIVER_LOCATION);
         n.setRecipientEmail(recipientEmail);
@@ -95,7 +95,7 @@ public class NotificationFactory {
     /**
      * Create a system notification
      */
-    public static SystemNotification createSystemNotification(
+    public SystemNotification createSystemNotification(
             String recipientEmail, String title, String message, String severity) {
         SystemNotification n = (SystemNotification) create(TYPE_SYSTEM);
         n.setRecipientEmail(recipientEmail);
