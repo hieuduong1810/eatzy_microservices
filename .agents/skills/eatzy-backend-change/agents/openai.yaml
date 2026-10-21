@@ -1,0 +1,4 @@
+interface:
+  display_name: "Eatzy Backend Change"
+  short_description: "Build backend features with contract-aware checks"
+  default_prompt: "Dùng $eatzy-backend-change để triển khai thay đổi backend, kiểm tra behavior và phối hợp API với web/mobile."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Eatzy Backend Debug"
+  short_description: "Trace API, auth, Docker and realtime failures"
+  default_prompt: "Dùng $eatzy-backend-debug để tái hiện lỗi Eatzy, xác định nguyên nhân từ source/log và kiểm chứng bản sửa."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Eatzy Backend Review"
+  short_description: "Review domain, auth and API compatibility changes"
+  default_prompt: "Dùng $eatzy-backend-review để review thay đổi backend, nêu lỗi có bằng chứng và khoảng trống kiểm thử."
